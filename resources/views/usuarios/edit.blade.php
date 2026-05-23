@@ -31,36 +31,7 @@
         <p class="text-sm text-gray-500 mt-2 font-medium">Actualiza los datos y permisos de {{ $usuario->name }}.</p>
     </div>
 
-    @if (session('success'))
-        <div class="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl shadow-sm">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-500"></i>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm text-green-700 font-bold">{{ session('success') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if ($errors->any())
-        <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-500"></i>
-                </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-bold text-red-800">Se encontraron errores:</h3>
-                    <ul class="mt-1 text-sm text-red-700 list-disc list-inside">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        </div>
-    @endif
+    @include('partials.alerts')
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -68,12 +39,12 @@
                 <i class="fas fa-user-edit text-indigo-500"></i> Actualizar Perfil
             </h3>
             @if ($usuario->active)
-                 <span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded border border-green-200">Activo</span>
+                 <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-200">Activo</span>
             @else
-                 <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded border border-gray-200">Inactivo</span>
+                 <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-lg border border-gray-200">Inactivo</span>
             @endif
         </div>
-        
+
         <div class="p-6 sm:p-8">
             <form action="{{ route('usuarios.update', $usuario->id) }}" method="POST" class="space-y-6">
                 @csrf
@@ -83,29 +54,38 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="name" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Nombre Completo <span class="text-red-500">*</span></label>
-                        <input type="text" id="name" name="name" required value="{{ old('name', $usuario->name) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white" placeholder="Ej. Juan Pérez">
+                        <label for="name" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Nombre Completo <span class="text-rose-500">*</span></label>
+                        <input type="text" id="name" name="name" required value="{{ old('name', $usuario->name) }}" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Ej. Juan Pérez">
+                        @error('name')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
-                        <label for="email" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Correo Electrónico <span class="text-red-500">*</span></label>
-                        <input type="email" id="email" name="email" required value="{{ old('email', $usuario->email) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white" placeholder="Ej. juan@agencia.com">
+                        <label for="email" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Correo Electrónico <span class="text-rose-500">*</span></label>
+                        <input type="email" id="email" name="email" required value="{{ old('email', $usuario->email) }}" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Ej. juan@agencia.com">
+                        @error('email')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
-                        <label for="role" class="block text-sm font-bold text-gray-700 mb-1">Rol Operativo <span class="text-red-500">*</span></label>
-                        <select id="role" name="role" required class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white">
+                        <label for="role" class="block text-sm font-bold text-gray-700 mb-1">Rol Operativo <span class="text-rose-500">*</span></label>
+                        <select id="role" name="role" required class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50">
                             <option value="">-- Selecciona un rol --</option>
                             <option value="admin" {{ $userRole === 'admin' || $userRole === 'administrador' ? 'selected' : '' }}>Administrador (Control total)</option>
                             <option value="documentador" {{ $userRole === 'documentador' ? 'selected' : '' }}>Documentador (Captura Operaciones)</option>
                             <option value="trafico" {{ $userRole === 'trafico' ? 'selected' : '' }}>Tráfico / Operativo</option>
                             <option value="cliente" {{ $userRole === 'cliente' || $userRole === 'clienteadmin' ? 'selected' : '' }}>Cliente (Solo vista)</option>
                         </select>
+                        @error('role')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div id="cliente-select-container" style="{{ $userRole === 'cliente' || $userRole === 'clienteadmin' ? 'display:block;' : 'display:none;' }}">
-                        <label for="cliente_id" class="block text-sm font-bold text-gray-700 mb-1">Empresa del Cliente <span class="text-red-500">*</span></label>
-                        <select id="cliente_id" name="cliente_id" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white">
+                        <label for="cliente_id" class="block text-sm font-bold text-gray-700 mb-1">Empresa del Cliente <span class="text-rose-500">*</span></label>
+                        <select id="cliente_id" name="cliente_id" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50">
                             <option value="">-- Selecciona a qué cliente pertenece --</option>
                             @foreach($clientes as $cliente)
                                 <option value="{{ $cliente->id }}" {{ old('cliente_id', $usuario->cliente_id) == $cliente->id ? 'selected' : '' }}>
@@ -117,8 +97,11 @@
 
                     <div class="md:col-span-2">
                         <label for="password" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Contraseña</label>
-                        <input type="text" id="password" name="password" value="{{ old('password', $usuario->password) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white bg-gray-50 text-gray-500" readonly>
+                        <input type="password" id="password" name="password" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-100 text-gray-500 cursor-not-allowed" readonly placeholder="••••••••">
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-info-circle"></i> La contraseña encriptada no puede verse en texto plano por seguridad.</p>
+                        @error('password')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 
@@ -139,10 +122,10 @@
                 </div>
 
                 <div class="pt-6 border-t border-gray-100 flex items-center justify-end gap-3 mt-8">
-                    <a href="{{ route('usuarios.index') }}" class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                    <a href="{{ route('usuarios.index') }}" class="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                         Cancelar
                     </a>
-                    <button type="submit" class="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                    <button type="submit" class="inline-flex justify-center rounded-xl border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                         Guardar Cambios
                     </button>
                 </div>
@@ -151,7 +134,6 @@
     </div>
 </div>
 
-<script src="https://cdn.tailwindcss.com"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const roleSelect = document.getElementById('role');
@@ -183,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     roleSelect.addEventListener('change', toggleFields);
-    // Ejecutar al cargar
     toggleFields();
 });
 </script>

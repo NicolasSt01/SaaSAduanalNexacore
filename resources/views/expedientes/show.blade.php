@@ -65,7 +65,7 @@
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-y-8 gap-x-4 relative z-10">
                     <div>
                         <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Cliente</label>
-                        <p class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ $expediente->cliente->nombre_empresa }}</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ $expediente->cliente->nombre }}</p>
                     </div>
                     <div>
                         <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Patente</label>
@@ -408,29 +408,7 @@
                 <form id="upload-form-op" onsubmit="uploadFiles(event)">
                     <input type="hidden" name="operacion_id" id="modal-op-id">
                     <input type="hidden" name="id" value="{{ $expediente->id }}">
-                    <div class="mb-6">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Tipo de Documento</label>
-                        <select name="tipo_documento" class="w-full bg-gray-50 dark:bg-gray-700 border-none rounded-2xl px-4 py-3 text-sm font-bold text-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all">
-                            <optgroup label="Expediente por Operación">
-                                <option value="factura">Factura Comercial / Eq.</option>
-                                <option value="encargo">Encargo Conferido (Electrónico)</option>
-                                <option value="transporte">Documento de Transporte (BL/Guía/CP)</option>
-                                <option value="empaque">Lista de Empaque (Packing List)</option>
-                                <option value="origen">Certificado de Origen</option>
-                                <option value="rrna">Cumplimiento de RRNA's</option>
-                                <option value="gastos">Comprobante de Gastos Incrementables</option>
-                            </optgroup>
-                            <optgroup label="Documentos Específicos">
-                                <option value="doda">DODA / PITA</option>
-                                <option value="cupo">Carta de Cupo Electrónica</option>
-                                <option value="val">Certificación de Valor (VAL)</option>
-                            </optgroup>
-                            <optgroup label="General">
-                                <option value="pedimento_pagado">Pedimento Pagado</option>
-                                <option value="otros" selected>Otros / Anexos</option>
-                            </optgroup>
-                        </select>
-                    </div>
+                    <!-- INC-002: El tipo de documento se asigna individualmente por archivo en la lista -->
                     <button type="submit" id="btn-upload-op" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all disabled:opacity-50">
                         <span id="btn-text">INICIAR CARGA</span>
                         <div id="btn-loader" class="hidden">
@@ -552,7 +530,10 @@
                         <div class="flex items-center justify-between p-3 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-50 dark:border-indigo-900/30 group transition-all">
                             <div class="flex items-center gap-3">
                                 @php 
-                                    $hasFile = $expediente->documentos()->where('tipo_documento', $key)->exists();
+                                    // INC-019: Documentos maestros se consultan del CLIENTE
+                                    $hasFile = $expediente->cliente && $expediente->cliente->documentosMaestros
+                                        ? $expediente->cliente->documentosMaestros->where('tipo_documento', $key)->isNotEmpty()
+                                        : false;
                                     $isManual = !empty($expediente->checklist_cumplimiento[$key]);
                                 @endphp
                                 @if($hasFile)
@@ -721,11 +702,31 @@
         list.innerHTML = '';
         selectedFiles = Array.from(input.files);
 
+        const tipoOptions = `
+            <optgroup label="Expediente por Operación">
+                <option value="factura">Factura Comercial / Eq.</option>
+                <option value="encargo">Encargo Conferido (Electrónico)</option>
+                <option value="transporte">Documento de Transporte (BL/Guía/CP)</option>
+                <option value="empaque">Lista de Empaque (Packing List)</option>
+                <option value="origen">Certificado de Origen</option>
+                <option value="rrna">Cumplimiento de RRNA's</option>
+                <option value="gastos">Comprobante de Gastos Incrementables</option>
+            </optgroup>
+            <optgroup label="Documentos Específicos">
+                <option value="doda">DODA / PITA</option>
+                <option value="cupo">Carta de Cupo Electrónica</option>
+                <option value="val">Certificación de Valor (VAL)</option>
+            </optgroup>
+            <optgroup label="General">
+                <option value="otros" selected>Otros / Anexos</option>
+            </optgroup>
+        `;
+
         selectedFiles.forEach((file, index) => {
             let icon = 'fa-file-alt';
             let color = 'text-gray-400';
             const ext = file.name.split('.').pop().toLowerCase();
-            
+
             if(ext === 'pdf') { icon = 'fa-file-pdf'; color = 'text-rose-500'; }
             else if(['xls', 'xlsx', 'csv'].includes(ext)) { icon = 'fa-file-excel'; color = 'text-emerald-500'; }
             else if(['doc', 'docx'].includes(ext)) { icon = 'fa-file-word'; color = 'text-indigo-500'; }
@@ -733,12 +734,17 @@
             else if(ext === 'xml') { icon = 'fa-file-code'; color = 'text-cyan-500'; }
 
             list.innerHTML += `
-                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
-                    <div class="flex items-center gap-2 overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
+                    <div class="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
                         <i class="fas ${icon} ${color}"></i>
                         <span class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">${file.name}</span>
+                        <span class="text-[9px] font-black text-gray-400 uppercase">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
                     </div>
-                    <span class="text-[9px] font-black text-gray-400 uppercase">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <div class="min-w-[180px]">
+                        <select name="tipos_documento[]" class="w-full bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-xl px-3 py-2 text-[11px] font-bold text-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all">
+                            ${tipoOptions}
+                        </select>
+                    </div>
                 </div>
             `;
         });
@@ -754,7 +760,7 @@
         const btn = document.getElementById('btn-upload-op');
         const btnText = document.getElementById('btn-text');
         const btnLoader = document.getElementById('btn-loader');
-        
+
         btn.disabled = true;
         btnText.classList.add('hidden');
         btnLoader.classList.remove('hidden');
@@ -765,7 +771,8 @@
         });
 
         try {
-            const response = await fetch("{{ route('documentos_operacion.store') }}", {
+            // INC-002: Usamos store3 (documentos_operacion.store2) para soportar tipos individuales
+            const response = await fetch("{{ route('documentos_operacion.store2') }}", {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -773,21 +780,29 @@
                 }
             });
 
-            // Como store2 redirecciona con back(), verificamos si la respuesta es una redirección
             if (response.redirected) {
                 window.location.href = response.url;
             } else {
                 const data = await response.json();
                 if (data.success) {
-                    location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Éxito',
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Error al subir archivos' });
                 }
             }
         } catch (error) {
             console.error(error);
-            // Si falla por ser redirect, recargamos igual para que el usuario vea el mensaje flash
             window.location.reload();
+        } finally {
+            btn.disabled = false;
+            btnText.classList.remove('hidden');
+            btnLoader.classList.add('hidden');
         }
     }
 

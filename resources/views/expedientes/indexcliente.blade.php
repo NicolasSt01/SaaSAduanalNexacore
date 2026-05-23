@@ -2,359 +2,287 @@
 
 @section('title', 'Mis Expedientes')
 
-@section('customcss')
-    <style>
-        .expediente-card {
-            transition: all 0.3s ease;
-            border-left: 4px solid #3b82f6;
-        }
-
-        .expediente-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .badge-custom {
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-weight: 500;
-        }
-
-        .documento-item {
-            transition: background-color 0.2s;
-        }
-
-        .documento-item:hover {
-            background-color: #f8f9fa;
-        }
-
-        .stat-card {
-            border-radius: 12px;
-            border: none;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-    </style>
-@endsection
-
 @section('content')
-    <div class="container-fluid py-4">
-        {{-- Header --}}
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="mb-1">Mis Expedientes</h2>
-                        <p class="text-muted mb-0">{{ $cliente->nombre ?? 'Cliente' }}</p>
-                    </div>
-                    <div class="text-end">
-                        <div class="stat-card p-3 shadow-sm">
-                            <h4 class="mb-0">{{ $expedientes->total() }}</h4>
-                            <small>Total de Expedientes</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    {{-- Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-black text-gray-800">Mis <span class="text-indigo-600">Expedientes</span></h1>
+            <p class="text-sm text-gray-500 mt-1 font-medium">{{ $cliente->nombre ?? 'Cliente' }}</p>
         </div>
-
-        {{-- Filtros rápidos --}}
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <form method="GET" action="{{ route('expedientes.indexcliente') }}" class="row g-3">
-                            <div class="col-md-4">
-                                <label for="numero_pedimento" class="form-label small">No. Pedimento</label>
-                                <input type="text" class="form-control" id="numero_pedimento" name="numero_pedimento"
-                                    placeholder="Buscar por pedimento" value="{{ request('numero_pedimento') }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="estado" class="form-label small">Estado</label>
-                                <select class="form-select" id="estado" name="estado">
-                                    <option value="">Todos los estados</option>
-                                    <option value="En proceso" {{ request('estado') == 'En proceso' ? 'selected' : '' }}>En
-                                        proceso</option>
-                                    <option value="Abierto" {{ request('estado') == 'Abierto' ? 'selected' : '' }}>Abierto
-                                    </option>
-                                    <option value="Cerrado" {{ request('estado') == 'Cerrado' ? 'selected' : '' }}>Cerrado
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="fecha_desde" class="form-label small">Fecha Desde</label>
-                                <input type="date" class="form-control" id="fecha_desde" name="fecha_desde"
-                                    value="{{ request('fecha_desde') }}">
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-search"></i> Buscar
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl px-6 py-4 shadow-sm text-white">
+            <p class="text-3xl font-black">{{ $expedientes->total() }}</p>
+            <p class="text-xs font-bold uppercase tracking-wider text-indigo-100">Total de Expedientes</p>
         </div>
-
-        {{-- Lista de Expedientes --}}
-        <div class="row">
-            @forelse($expedientes as $expediente)
-                <div class="col-lg-6 col-xl-4 mb-4">
-                    <div class="card expediente-card h-100 shadow-sm">
-                        <div class="card-header bg-white border-0 pt-3">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h5 class="mb-1">
-                                        <i class="fas fa-file-alt text-primary me-2"></i>
-                                        {{ $expediente->numero_pedimento ?? 'Sin Pedimento' }}
-                                    </h5>
-                                    <small class="text-muted">
-                                        <i class="fas fa-calendar-alt"></i>
-                                        {{ $expediente->created_at->format('d/m/Y') }}
-                                    </small>
-                                </div>
-                                <span
-                                    class="badge badge-custom bg-{{ $expediente->estado == 'Cerrado' ? 'success' : ($expediente->estado == 'En proceso' ? 'warning' : 'primary') }}">
-                                    {{ $expediente->estado ?? 'Sin estado' }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="card-body">
-                            {{-- Información del expediente --}}
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted small">Aduana:</span>
-                                    <span class="small fw-bold">
-                                        {{ $expediente->aduana->nombre ?? 'No especificada' }}
-                                    </span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted small">Categoría:</span>
-                                    <span class="small fw-bold">
-                                        {{ $expediente->categoria ?? 'No especificada' }}
-                                    </span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-muted small">Documentos:</span>
-                                    <span class="small fw-bold">
-                                        {{ $expediente->documentos->count() ?? 0 }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {{-- Documentos recientes --}}
-                            {{--@if($expediente->documentos->count() > 0)
-                                <div class="mb-3">
-                                    <small class="text-muted d-block mb-2">Documentos recientes:</small>
-                                    <div class="d-flex flex-column gap-1">
-                                        @foreach($expediente->documentos->take(2) as $documento)
-                                            <span class="badge bg-light text-dark border small text-start">
-                                                <i class="fas fa-file-pdf text-danger me-1"></i>
-                                                {{ Str::limit($documento->nombre_documento ?? 'Documento', 20) }}
-                                            </span>
-                                        @endforeach
-                                        @if($expediente->documentos->count() > 2)
-                                            <span class="badge bg-light text-dark small">
-                                                +{{ $expediente->documentos->count() - 2 }} más
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endif--}}
-                        </div>
-                        <div class="card-footer bg-white border-0 pb-3">
-                            <a href="{{ route('expedientes.showclient', $expediente->id) }}" class="btn btn-primary w-100">
-                                <i class="fas fa-folder-open"></i> Ver Documentos
-                            </a>
-                        </div>
-                        {{--<div class="card-footer bg-white border-0 pb-3">
-                            <button class="btn btn-primary w-100" data-bs-toggle="modal"
-                                data-bs-target="#expedienteModal{{ $expediente->id }}">
-                                <i class="fas fa-folder-open"></i> Ver Documentos
-                            </button>
-                        </div>--}}
-                    </div>
-                </div>
-
-                {{-- Modal de detalles del expediente --}}
-                <div class="modal fade" id="expedienteModal{{ $expediente->id }}" tabindex="-1" aria-hidden="true"
-                    data-bs-backdrop="static">
-                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                        <div class="modal-content rounded-4 shadow-lg">
-                            <div class="modal-header"
-                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                                <h5 class="modal-title">
-                                    <i class="fas fa-file-alt me-2"></i>
-                                    Expediente: {{ $expediente->numero_pedimento ?? 'Sin Pedimento' }}
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body p-4">
-                                {{-- Información general --}}
-                                <div class="card mb-4 border-0 bg-light">
-                                    <div class="card-body">
-                                        <h6 class="text-primary mb-3">
-                                            <i class="fas fa-info-circle"></i> Información General
-                                        </h6>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <p class="mb-2">
-                                                    <strong>Pedimento:</strong>
-                                                    {{ $expediente->numero_pedimento ?? 'Sin Pedimento' }}
-                                                </p>
-                                                <p class="mb-2">
-                                                    <strong>Aduana:</strong>
-                                                    {{ $expediente->aduana->nombre ?? 'No especificada' }}
-                                                </p>
-                                                <p class="mb-2">
-                                                    <strong>Categoría:</strong>
-                                                    {{ $expediente->categoria ?? 'No especificada' }}
-                                                </p>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <p class="mb-2">
-                                                    <strong>Fecha de Creación:</strong>
-                                                    {{ $expediente->created_at->format('d/m/Y H:i') }}
-                                                </p>
-                                                <p class="mb-2">
-                                                    <strong>Estado:</strong>
-                                                    <span
-                                                        class="badge bg-{{ $expediente->estado == 'Cerrado' ? 'success' : ($expediente->estado == 'En proceso' ? 'warning' : 'primary') }}">
-                                                        {{ $expediente->estado ?? 'Sin estado' }}
-                                                    </span>
-                                                </p>
-                                                <p class="mb-2">
-                                                    <strong>Total Documentos:</strong>
-                                                    {{ $expediente->documentos->count() }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {{-- Documentos del expediente --}}
-                                <h6 class="text-primary mb-3">
-                                    <i class="fas fa-file-download"></i> Documentos del Expediente
-                                </h6>
-
-                                @if($expediente->documentos->isNotEmpty())
-                                    <div class="card shadow-sm">
-                                        <div class="card-body">
-                                            <div class="list-group">
-                                                @foreach($expediente->documentos->groupBy('tipo_documento') as $tipo => $documentos)
-                                                    <div class="mb-4">
-                                                        <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">
-                                                            <i class="fas fa-folder me-2"></i>
-                                                            {{ ucfirst($tipo) }} ({{ $documentos->count() }})
-                                                        </h6>
-                                                        @foreach($documentos as $documento)
-                                                            <div
-                                                                class="documento-item d-flex justify-content-between align-items-center p-3 border rounded mb-2">
-                                                                <div class="d-flex align-items-center flex-grow-1">
-                                                                    <i class="fas fa-file-pdf text-danger me-3 fs-5"></i>
-                                                                    <div class="flex-grow-1">
-                                                                        <div class="fw-bold text-dark">
-                                                                            {{ $documento->nombre_documento ?? 'Documento sin nombre' }}
-                                                                        </div>
-                                                                        <div class="small text-muted">
-                                                                            <i class="fas fa-calendar-alt me-1"></i>
-                                                                            {{ $documento->created_at->format('d/m/Y H:i') }}
-                                                                            @if($documento->descripcion)
-                                                                                • {{ $documento->descripcion }}
-                                                                            @endif
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="d-flex gap-2">
-                                                                    @if($documento->archivo_url)
-                                                                        <a href="{{ Storage::url($documento->archivo_url) }}"
-                                                                            class="btn btn-sm btn-outline-primary rounded-pill" target="_blank"
-                                                                            data-bs-toggle="tooltip" title="Ver documento">
-                                                                            <i class="fas fa-eye"></i>
-                                                                        </a>
-                                                                        <a href="{{ Storage::url($documento->archivo_url) }}"
-                                                                            class="btn btn-sm btn-primary rounded-pill" download
-                                                                            data-bs-toggle="tooltip" title="Descargar documento">
-                                                                            <i class="fas fa-download"></i>
-                                                                        </a>
-                                                                    @else
-                                                                        <span class="badge bg-warning text-dark">
-                                                                            Sin archivo
-                                                                        </span>
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle"></i>
-                                        No hay documentos disponibles para este expediente.
-                                    </div>
-                                @endif
-                            </div>
-                            <div class="modal-footer bg-light">
-                                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">
-                                    <i class="fas fa-times"></i> Cerrar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @empty
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-body text-center py-5">
-                            <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
-                            <h4 class="text-muted">No hay expedientes disponibles</h4>
-                            <p class="text-muted">Aún no tienes expedientes registrados en el sistema.</p>
-                        </div>
-                    </div>
-                </div>
-            @endforelse
-        </div>
-
-        {{-- Paginación --}}
-        @if($expedientes->hasPages())
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <small class="text-muted">
-                                        Mostrando <strong>{{ $expedientes->firstItem() }}</strong> a
-                                        <strong>{{ $expedientes->lastItem() }}</strong> de
-                                        <strong>{{ $expedientes->total() }}</strong> expedientes
-                                    </small>
-                                </div>
-                                <div class="col-md-6">
-                                    {{ $expedientes->appends(request()->query())->links('pagination::bootstrap-5') }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
     </div>
-    <script>
-        // Inicializar tooltips
-        document.addEventListener('DOMContentLoaded', function () {
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
+
+    {{-- Filtros --}}
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
+        <form method="GET" action="{{ route('expedientes.indexcliente') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label for="numero_pedimento" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">No. Pedimento</label>
+                <input type="text" id="numero_pedimento" name="numero_pedimento"
+                    placeholder="Buscar por pedimento" value="{{ request('numero_pedimento') }}"
+                    class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+            </div>
+            <div>
+                <label for="estado" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Estado</label>
+                <select id="estado" name="estado"
+                    class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+                    <option value="">Todos los estados</option>
+                    <option value="En proceso" {{ request('estado') == 'En proceso' ? 'selected' : '' }}>En proceso</option>
+                    <option value="Abierto" {{ request('estado') == 'Abierto' ? 'selected' : '' }}>Abierto</option>
+                    <option value="Cerrado" {{ request('estado') == 'Cerrado' ? 'selected' : '' }}>Cerrado</option>
+                </select>
+            </div>
+            <div>
+                <label for="fecha_desde" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Fecha Desde</label>
+                <input type="date" id="fecha_desde" name="fecha_desde"
+                    value="{{ request('fecha_desde') }}"
+                    class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+            </div>
+            <div class="flex items-end">
+                <button type="submit"
+                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-sm">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Grid de expedientes --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @forelse($expedientes as $expediente)
+            @php
+                $estadoBadgeClass = match($expediente->estado) {
+                    'Cerrado' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    'En proceso' => 'bg-amber-50 text-amber-700 border-amber-200',
+                    'Cancelado' => 'bg-rose-50 text-rose-700 border-rose-200',
+                    default => 'bg-blue-50 text-blue-700 border-blue-200',
+                };
+            @endphp
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-xl hover:border-indigo-300 transition-all duration-300 transform hover:-translate-y-1 flex flex-col h-full border-l-4 border-l-indigo-500">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h5 class="text-base font-black text-gray-800">
+                            <i class="fas fa-file-alt text-indigo-600 mr-2"></i>
+                            {{ $expediente->numero_pedimento ?? 'Sin Pedimento' }}
+                        </h5>
+                        <p class="text-xs text-gray-400 mt-1">
+                            <i class="fas fa-calendar-alt mr-1"></i>
+                            {{ $expediente->created_at->format('d/m/Y') }}
+                        </p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border {{ $estadoBadgeClass }}">
+                        {{ $expediente->estado ?? 'Sin estado' }}
+                    </span>
+                </div>
+
+                <div class="space-y-2 flex-grow">
+                    <div class="flex justify-between">
+                        <span class="text-xs text-gray-400 font-medium">Aduana:</span>
+                        <span class="text-xs font-bold text-gray-700">
+                            {{ $expediente->aduana->nombre ?? 'No especificada' }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-xs text-gray-400 font-medium">Categoría:</span>
+                        <span class="text-xs font-bold text-gray-700">
+                            {{ $expediente->categoria ?? 'No especificada' }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-xs text-gray-400 font-medium">Documentos:</span>
+                        <span class="text-xs font-bold text-gray-700">
+                            {{ $expediente->documentos->count() ?? 0 }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="openExpedienteModal('{{ $expediente->id }}')"
+                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-sm">
+                        <i class="fas fa-folder-open"></i> Ver Documentos
+                    </button>
+                </div>
+            </div>
+
+            {{-- Modal de detalles del expediente --}}
+            <div id="expedienteModal{{ $expediente->id }}" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                    <div class="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm" aria-hidden="true" onclick="closeExpedienteModal('{{ $expediente->id }}')"></div>
+                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                    <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-2xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+                        <div class="px-6 py-5 bg-gradient-to-r from-indigo-500 to-purple-600">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xl font-black text-white">
+                                    <i class="fas fa-file-alt mr-2"></i>
+                                    Expediente: {{ $expediente->numero_pedimento ?? 'Sin Pedimento' }}
+                                </h3>
+                                <button type="button" onclick="closeExpedienteModal('{{ $expediente->id }}')" class="text-white hover:text-indigo-200 focus:outline-none transition-colors">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            {{-- Información general --}}
+                            <div class="bg-gray-50 rounded-2xl border border-gray-100 p-6 mb-6">
+                                <h6 class="text-sm font-black text-indigo-600 mb-4">
+                                    <i class="fas fa-info-circle mr-2"></i>Información General
+                                </h6>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Pedimento</label>
+                                        <p class="text-sm font-bold text-gray-800">{{ $expediente->numero_pedimento ?? 'Sin Pedimento' }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Aduana</label>
+                                        <p class="text-sm font-bold text-gray-800">{{ $expediente->aduana->nombre ?? 'No especificada' }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Categoría</label>
+                                        <p class="text-sm font-bold text-gray-800">{{ $expediente->categoria ?? 'No especificada' }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Fecha de Creación</label>
+                                        <p class="text-sm font-bold text-gray-800">{{ $expediente->created_at->format('d/m/Y H:i') }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Estado</label>
+                                        <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border {{ $estadoBadgeClass }}">
+                                            {{ $expediente->estado ?? 'Sin estado' }}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Total Documentos</label>
+                                        <p class="text-sm font-bold text-gray-800">{{ $expediente->documentos->count() }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Documentos --}}
+                            <h6 class="text-sm font-black text-indigo-600 mb-4">
+                                <i class="fas fa-file-download mr-2"></i>Documentos del Expediente
+                            </h6>
+
+                            @if($expediente->documentos->isNotEmpty())
+                                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                                    @foreach($expediente->documentos->groupBy('tipo_documento') as $tipo => $documentos)
+                                        <div class="mb-4">
+                                            <h6 class="text-sm font-black text-indigo-600 mb-3 pb-2 border-b border-gray-100">
+                                                <i class="fas fa-folder mr-2"></i>
+                                                {{ ucfirst($tipo) }} ({{ $documentos->count() }})
+                                            </h6>
+                                            @foreach($documentos as $documento)
+                                                <div class="flex items-center justify-between p-3 border border-gray-100 rounded-xl mb-2 hover:bg-indigo-50/30 transition-colors">
+                                                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                                                        <i class="fas fa-file-pdf text-rose-500 text-xl"></i>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-sm font-bold text-gray-800 truncate">
+                                                                {{ $documento->nombre_documento ?? 'Documento sin nombre' }}
+                                                            </p>
+                                                            <p class="text-xs text-gray-400">
+                                                                <i class="fas fa-calendar-alt mr-1"></i>
+                                                                {{ $documento->created_at->format('d/m/Y H:i') }}
+                                                                @if($documento->descripcion)
+                                                                    • {{ $documento->descripcion }}
+                                                                @endif
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 ml-4 flex-shrink-0">
+                                                        @if($documento->archivo_url)
+                                                            <a href="{{ Storage::url($documento->archivo_url) }}"
+                                                                class="inline-flex items-center gap-1 px-3 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-100 transition-all"
+                                                                target="_blank" title="Ver documento">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="{{ Storage::url($documento->archivo_url) }}"
+                                                                class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 transition-all shadow-sm"
+                                                                download title="Descargar documento">
+                                                                <i class="fas fa-download"></i>
+                                                            </a>
+                                                        @else
+                                                            <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border bg-amber-50 text-amber-700 border-amber-200">
+                                                                Sin archivo
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-sm">
+                                    <div class="flex">
+                                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                                        <div class="ml-3">
+                                            <p class="text-sm text-blue-700 font-bold">No hay documentos disponibles para este expediente.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end">
+                            <button type="button" onclick="closeExpedienteModal('{{ $expediente->id }}')"
+                                class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
+                                <i class="fas fa-times"></i> Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="col-span-full bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center justify-center">
+                <i class="fas fa-folder-open text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-700">No hay expedientes disponibles</h3>
+                <p class="text-gray-500 mt-2">Aún no tienes expedientes registrados en el sistema.</p>
+            </div>
+        @endforelse
+    </div>
+
+    {{-- Paginación --}}
+    @if($expedientes->hasPages())
+        <div class="mt-8">
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p class="text-sm text-gray-500">
+                        Mostrando
+                        <span class="font-bold text-gray-700">{{ $expedientes->firstItem() }}</span>
+                        a
+                        <span class="font-bold text-gray-700">{{ $expedientes->lastItem() }}</span>
+                        de
+                        <span class="font-bold text-gray-700">{{ $expedientes->total() }}</span>
+                        expedientes
+                    </p>
+                    <div>
+                        {{ $expedientes->appends(request()->query())->links() }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+</div>
+
+<script>
+    function openExpedienteModal(id) {
+        document.getElementById('expedienteModal' + id).classList.remove('hidden');
+    }
+
+    function closeExpedienteModal(id) {
+        document.getElementById('expedienteModal' + id).classList.add('hidden');
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.fixed.inset-0.z-50').forEach(function(modal) {
+                if (!modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                }
             });
-        });
-    </script>
-
-    @push('scripts')
-
-    @endpush
+        }
+    });
+</script>
 @endsection

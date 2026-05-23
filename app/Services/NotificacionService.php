@@ -246,8 +246,8 @@ public function notificarAlphaPendiente(Operacion $operacion)
         return;
     }
 
-    $creador = auth()->user();
-    $nombreCreador = $creador->name ?? 'Usuario';
+    $creador = auth()->check() ? auth()->user() : null;
+    $nombreCreador = $creador->name ?? 'Sistema';
     
     $titulo = "⚠️ Operación sin código Alpha";
     $mensaje = "{$nombreCreador} registró una nueva operación (Factura: {$operacion->num_factura}, Thermo: {$operacion->num_thermo}) sin código Alpha. Pendiente de actualización por Tráfico.";
@@ -286,8 +286,8 @@ public function notificarAlphaActualizado(Operacion $operacion)
         return;
     }
 
-    $creador = auth()->user();
-    $nombreCreador = $creador->name ?? 'Usuario';
+    $creador = auth()->check() ? auth()->user() : null;
+    $nombreCreador = $creador->name ?? 'Sistema';
     
     $titulo = "✅ Código Alpha actualizado";
     $mensaje = "{$nombreCreador} actualizó el código Alpha ({$operacion->codigo_alpha}) para la operación con Factura: {$operacion->num_factura}, Thermo: {$operacion->num_thermo}";
@@ -324,11 +324,11 @@ public function notificarAlphaActualizado(Operacion $operacion)
 
             $notificaciones = [];
 
-            foreach ($usuarios as $usuario) {
-                $notificaciones[] = [
-                    'user_id' => $usuario->id,
-                    'creador_id' => auth()->id(),
-                    'operacion_id' => $operacionId,
+        foreach ($usuarios as $usuario) {
+            $notificaciones[] = [
+                'user_id' => $usuario->id,
+                'creador_id' => auth()->check() ? auth()->id() : null,
+                'operacion_id' => $operacionId,
                     'titulo' => $titulo,
                     'mensaje' => $mensaje,
                     'tipo' => $tipo,
@@ -371,7 +371,7 @@ public function notificarAlphaActualizado(Operacion $operacion)
         foreach ($usuarios as $usuario) {
             $notificaciones[] = [
                 'user_id' => $usuario->id,
-                'created_by' => auth()->id(),
+                'created_by' => auth()->check() ? auth()->id() : null,
                 'operacion_id' => $operacionId,
                 'titulo' => $titulo,
                 'mensaje' => $mensaje,

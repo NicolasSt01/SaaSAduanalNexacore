@@ -3,66 +3,92 @@
 @section('title', 'Editar Patente')
 
 @section('content')
-<div class="container">
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Editar Patente: {{ $patente->numero_patente }}</h3>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <nav class="flex mb-2" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="{{ route('admin.adminconfig') }}" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
+                        <i class="fas fa-cog mr-2"></i> Configuración
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 text-xs mx-2"></i>
+                        <a href="{{ route('patentes.index') }}" class="text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">Patentes</a>
+                    </div>
+                </li>
+                <li aria-current="page">
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 text-xs mx-2"></i>
+                        <span class="text-sm font-medium text-gray-700">Editar</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        <h1 class="text-3xl font-black text-gray-800 tracking-tight">Editar <span class="text-indigo-600">Patente</span></h1>
+        <p class="text-sm text-gray-500 mt-2 font-medium">Actualiza los datos de la patente aduanal.</p>
+    </div>
+
+    @include('partials.alerts')
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100">
+            <h3 class="text-lg leading-6 font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-file-contract text-indigo-500"></i> Editar: {{ $patente->numero_patente }}
+            </h3>
+        </div>
+
+        <div class="p-6 sm:p-8">
+            <form action="{{ route('patentes.update', $patente) }}" method="POST" class="space-y-6">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label for="numero_patente" class="block text-sm font-bold text-gray-700 mb-1">Número de Patente</label>
+                    <input type="text" id="numero_patente" value="{{ $patente->numero_patente }}" readonly class="w-full rounded-xl border-gray-200 bg-gray-100 text-gray-500 p-3 border shadow-sm cursor-not-allowed">
+                    <input type="hidden" name="numero_patente" value="{{ $patente->numero_patente }}">
                 </div>
-                <div class="card-body">
-                    <form action="{{ route('patentes.update', $patente) }}" method="POST">
-                        @csrf
-                        @method('PUT')
-                        
-                        <!-- Campo Número de Patente (readonly) -->
-                        <div class="mb-3">
-                            <label for="numero_patente" class="form-label">Número de Patente</label>
-                            <input type="text" class="form-control" id="numero_patente" 
-                                   value="{{ $patente->numero_patente }}" readonly>
-                            <input type="hidden" name="numero_patente" value="{{ $patente->numero_patente }}">
-                        </div>
-                        
-                        <!-- Campo Nombre Agente Aduanal (requerido) -->
-                        <div class="mb-3">
-                            <label for="nombre_agente_aduanal" class="form-label">Nombre del Agente Aduanal *</label>
-                            <input type="text" class="form-control" id="nombre_agente_aduanal" 
-                                   name="nombre_agente_aduanal" 
-                                   value="{{ old('nombre_agente_aduanal', $patente->nombre_agente_aduanal) }}" required>
-                        </div>
-                        
-                        <!-- Campo RFC (opcional) -->
-                        <div class="mb-3">
-                            <label for="rfc_agente" class="form-label">RFC del Agente</label>
-                            <input type="text" class="form-control" id="rfc_agente" 
-                                   name="rfc_agente" 
-                                   value="{{ old('rfc_agente', $patente->rfc_agente) }}">
-                        </div>
-                        
-                        <!-- Sección para asignar aduanas -->
-                        <div class="mb-3">
-                            <label class="form-label">Aduanas asignadas</label>
-                            <div class="border p-3">
-                                @foreach($aduanas as $aduana)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                           name="aduanas[]" 
-                                           value="{{ $aduana->id }}"
-                                           id="aduana_{{ $aduana->id }}"
-                                           {{ in_array($aduana->id, $aduanaSeleccionadas) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="aduana_{{ $aduana->id }}">
-                                        {{ $aduana->clave_aduana }} - {{ $aduana->nombre_aduana }}
-                                    </label>
-                                </div>
-                                @endforeach
-                            </div>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary">Actualizar</button>
-                        <a href="{{ route('patentes.index') }}" class="btn btn-secondary">Cancelar</a>
-                    </form>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="nombre_agente_aduanal" class="block text-sm font-bold text-gray-700 mb-1">Nombre del Agente Aduanal <span class="text-rose-500">*</span></label>
+                        <input type="text" id="nombre_agente_aduanal" name="nombre_agente_aduanal" required value="{{ old('nombre_agente_aduanal', $patente->nombre_agente_aduanal) }}" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Ej: Juan Carlos Méndez López">
+                        @error('nombre_agente_aduanal')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="rfc_agente" class="block text-sm font-bold text-gray-700 mb-1">RFC del Agente</label>
+                        <input type="text" id="rfc_agente" name="rfc_agente" value="{{ old('rfc_agente', $patente->rfc_agente) }}" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 uppercase" placeholder="Ej: XAXX010101000">
+                        @error('rfc_agente')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
-            </div>
+
+                <div class="pt-4 border-t border-gray-100">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Aduanas asignadas</label>
+                    <div class="border border-gray-200 rounded-xl p-4 bg-gray-50/50 space-y-2">
+                        @foreach($aduanas as $aduana)
+                        <label class="inline-flex items-center w-full sm:w-auto">
+                            <input type="checkbox" name="aduanas[]" value="{{ $aduana->id }}" id="aduana_{{ $aduana->id }}" {{ in_array($aduana->id, $aduanaSeleccionadas) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <span class="ml-2 text-sm text-gray-700">{{ $aduana->clave_aduana }} - {{ $aduana->nombre_aduana }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-gray-100 flex items-center justify-end gap-3">
+                    <a href="{{ route('patentes.index') }}" class="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="inline-flex justify-center rounded-xl border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                        <i class="fas fa-save mr-2"></i> Actualizar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -29,4 +29,14 @@ class Cliente extends Model
     {
         return $this->hasMany(Operacion::class , 'cliente_id');
     }
+    // Relación con documentos (Art. 36-A a nivel cliente)
+    public function documentos()
+    {
+        return $this->hasMany(Documento::class, 'cliente_id');
+    }
+    // Documentos maestros Art. 36-A (sin expediente asociado)
+    public function documentosMaestros()
+    {
+        return $this->documentos()->whereNull('pedimento_id');
+    }
 }

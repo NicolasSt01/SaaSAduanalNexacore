@@ -75,7 +75,7 @@ class ConceptoAdicionalController extends Controller
             // Si viene archivo, guardarlo y asociarlo al concepto
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
-                $path = $file->store('documentos/conceptos');
+                $path = $file->store('documentos/conceptos', 'r2');
 
                 $nombreDocumento = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
 

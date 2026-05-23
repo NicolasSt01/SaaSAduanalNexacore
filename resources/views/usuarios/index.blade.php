@@ -32,18 +32,7 @@
         </div>
     </div>
 
-    @if(session('success'))
-    <div class="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl shadow-sm">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <i class="fas fa-check-circle text-green-500"></i>
-            </div>
-            <div class="ml-3">
-                <p class="text-sm text-green-700 font-bold">{{ session('success') }}</p>
-            </div>
-        </div>
-    </div>
-    @endif
+    @include('partials.alerts')
 
     <!-- Content Card -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
@@ -93,7 +82,7 @@
                         <td class="px-6 py-4">
                             @if ($usuario->active)
                                 <div class="flex items-center">
-                                    <div class="h-2.5 w-2.5 rounded-full bg-green-500 mr-2 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
+                                    <div class="h-2.5 w-2.5 rounded-full bg-emerald-500 mr-2 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
                                     <span class="font-bold text-gray-700">Activo</span>
                                 </div>
                             @else
@@ -113,7 +102,7 @@
                                     <form action="{{ route('usuarios.desactivar', $usuario->id) }}" method="POST" class="inline" onsubmit="return confirm('¿Deseas dar de baja a este usuario? Ya no podrá acceder al sistema.');">
                                         @csrf
                                         @method('PUT')
-                                        <button type="submit" class="text-red-600 bg-red-50 hover:bg-red-600 hover:text-white border border-red-200 p-2 rounded-lg shadow-sm transition transform hover:scale-105" title="Dar de baja">
+                                        <button type="submit" class="text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 p-2 rounded-lg shadow-sm transition transform hover:scale-105" title="Dar de baja">
                                             <i class="fas fa-user-slash"></i>
                                         </button>
                                     </form>
@@ -135,6 +124,4 @@
         </div>
     </div>
 </div>
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
 @endsection

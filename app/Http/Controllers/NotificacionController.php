@@ -50,7 +50,7 @@ class NotificacionController extends Controller
                 'titulo' => $notif->titulo,
                 'mensaje' => $notif->mensaje,
                 'nivel' => 'info', // Default, se puede mejorar
-                'accion_url' => $notif->operacion ? route('trafico.operaciones.show', $notif->operacion_id) : null,
+                'accion_url' => $notif->operacion ? route('documentador.dashboard', ['op' => $notif->operacion_id]) : null,
                 'accion_texto' => 'Ver operación',
                 'icono' => 'fa-bell',
                 'color' => 'blue',

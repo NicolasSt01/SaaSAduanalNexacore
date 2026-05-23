@@ -41,25 +41,25 @@ class DashboardController extends Controller
         }
 
         // KPIs - FILTRADOS POR TENANT
-        $tramitesHoy = Operacion::where('tenant_id', $tenantId)
+        $tramitesHoy = Operacion::where('tenant_id', $tenantId)->where('estado', '!=', 'cancelada')
             ->whereDate('fecha_registro', $hoy)->count();
-        $tramitesTotales = Operacion::where('tenant_id', $tenantId)->count();
+        $tramitesTotales = Operacion::where('tenant_id', $tenantId)->where('estado', '!=', 'cancelada')->count();
         $clientesActivos = Cliente::where('tenant_id', $tenantId)->count();
         $usuariosActivos = User::where('tenant_id', $tenantId)->where('active', 1)->count();
 
         // Finalizados
-        $remesasCompletadas = Operacion::where('tenant_id', $tenantId)
+        $remesasCompletadas = Operacion::where('tenant_id', $tenantId)->where('estado', '!=', 'cancelada')
             ->whereDate('created_at', $hoy)
             ->where('estado', 'Finalizado')
             ->count();
         // Pendientes (todos los demás)
-        $remesasPendientes = Operacion::where('tenant_id', $tenantId)
+        $remesasPendientes = Operacion::where('tenant_id', $tenantId)->where('estado', '!=', 'cancelada')
             ->whereDate('created_at', $hoy)
             ->where('estado', '!=', 'Finalizado')
             ->count();
 
         // Operaciones por Modulación (agrupado, incluyendo null como "Sin dato") - FILTRADO POR TENANT
-        $modulacionesAssoc = DB::table('operaciones')
+        $modulacionesAssoc = DB::table('operaciones')->where('estado', '!=', 'cancelada')
             ->where('tenant_id', $tenantId)
             ->select(DB::raw("COALESCE(modulacion,'Sin dato') as modulacion"), DB::raw('COUNT(*) as total'))
             ->groupBy('modulacion')
@@ -83,7 +83,7 @@ class DashboardController extends Controller
         $clientesData = $clientesRows->pluck('total')->toArray();
 
         // Productos más exportados (TOP 10) - FILTRADO POR TENANT
-        $productosRows = DB::table('operaciones')
+        $productosRows = DB::table('operaciones')->where('estado', '!=', 'cancelada')
             ->where('tenant_id', $tenantId)
             ->select('nombre_producto', DB::raw('COUNT(*) as total'))
             ->whereNotNull('nombre_producto')
@@ -96,7 +96,7 @@ class DashboardController extends Controller
         $productosData = $productosRows->pluck('total')->toArray();
 
         // Usuarios más activos (documentadores) - FILTRADO POR TENANT
-        $usuariosActivosTop = Operacion::where('tenant_id', $tenantId)
+        $usuariosActivosTop = Operacion::where('tenant_id', $tenantId)->where('estado', '!=', 'cancelada')
             ->select('usuario_registro_id', DB::raw('COUNT(*) as total'))
             ->groupBy('usuario_registro_id')
             ->with('documentador')
@@ -153,17 +153,17 @@ class DashboardController extends Controller
 
 
         // Métricas rápidas
-        $pedimentosMes = Operacion::where($filtroCliente)->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
+        $pedimentosMes = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
 
-        $pedimentosVerde = Operacion::where($filtroCliente)->whereBetween('fecha_registro', [$inicioMes, $finMes])->where('modulacion', 'DESADUANAMIENTO LIBRE')->count();
+        $pedimentosVerde = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->whereBetween('fecha_registro', [$inicioMes, $finMes])->where('modulacion', 'DESADUANAMIENTO LIBRE')->count();
 
-        $pedimentosRojo = Operacion::where($filtroCliente)->whereBetween('fecha_registro', [$inicioMes, $finMes])->whereIn('modulacion', [
+        $pedimentosRojo = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->whereBetween('fecha_registro', [$inicioMes, $finMes])->whereIn('modulacion', [
             'RECONOCIMIENTO ADUANERO',
             'RECONOCIMIENTO ADUANERO CONCLUIDO'
         ])->count();
 
         // Evolución mensual (últimos 6 meses)
-        /*$evolucion = Operacion::where($filtroCliente)->select(
+        /*$evolucion = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->select(
             DB::raw("DATE_FORMAT(fecha, '%Y-%m') as mes"),
             DB::raw("COUNT(*) as total")
         )
@@ -177,7 +177,7 @@ class DashboardController extends Controller
         });
 
         $values = $evolucion->values();*/
-        $evolucion = Operacion::where('cliente_id', $user->cliente_id)
+        $evolucion = Operacion::where('cliente_id', $user->cliente_id)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE_FORMAT(fecha, '%Y-%m') as mes, COUNT(*) as total")
             ->where('fecha_registro', '>=', now()->subMonths(6))
             ->groupBy('mes')
@@ -188,7 +188,7 @@ class DashboardController extends Controller
         $values = $evolucion->values();
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where($filtroCliente)->with(['aduana', 'patente'])
+        $operacionesHoy = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->with(['aduana', 'patente'])
             ->whereDate('fecha_registro', $hoy)
             ->orderBy('fecha_registro', 'desc')
             ->take(5)
@@ -226,7 +226,7 @@ class DashboardController extends Controller
         $fechaInicio = $request->input('fecha_inicio', Carbon::now()->startOfMonth()->toDateString());
         $fechaFin = $request->input('fecha_fin', Carbon::now()->endOfMonth()->toDateString());
 
-        $query = Operacion::where('cliente_id', $user->cliente_id)
+        $query = Operacion::where('cliente_id', $user->cliente_id)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$fechaInicio, $fechaFin]);
 
         $operaciones = $query->orderBy('fecha_registro', 'desc')->get();
@@ -235,14 +235,14 @@ class DashboardController extends Controller
         $total = $query->count();
         $verdes = $query->where('modulacion', 'DESADUANAMIENTO LIBRE')->count();
         //$rojos = $query->whereIn('modulacion', ['RECONOCIMIENTO ADUANERO', 'RECONOCIMIENTO ADUANERO CONCLUIDO'])->count();
-        $rojos = Operacion::where('cliente_id', $user->clienteId)
+        $rojos = Operacion::where('cliente_id', $user->clienteId)->where('estado', '!=', 'cancelada')
             ->whereDate('fecha_registro', today())
             ->whereIn('modulacion', [
                 'RECONOCIMIENTO ADUANERO',
                 'RECONOCIMIENTO ADUANERO CONCLUIDO',
             ])
             ->count();
-        $hoy = Operacion::where('cliente_id', $user->cliente_id)
+        $hoy = Operacion::where('cliente_id', $user->cliente_id)->where('estado', '!=', 'cancelada')
             ->whereDate('fecha_registro', Carbon::today())
             ->count();
 
@@ -262,7 +262,7 @@ class DashboardController extends Controller
         $busqueda = $request->input('busqueda');
 
         // Base query
-        $baseQuery = Operacion::where('cliente_id', $user->cliente_id)
+        $baseQuery = Operacion::where('cliente_id', $user->cliente_id)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$fechaInicio, $fechaFin]);
 
         // Agregar filtro de búsqueda por número de factura
@@ -293,7 +293,7 @@ class DashboardController extends Controller
             ])
             ->count();
 
-        $hoy = Operacion::where('cliente_id', $user->cliente_id)
+        $hoy = Operacion::where('cliente_id', $user->cliente_id)->where('estado', '!=', 'cancelada')
             ->whereDate('fecha_registro', Carbon::today())
             ->count();
 
@@ -358,11 +358,11 @@ class DashboardController extends Controller
 
 
         // Métricas rápidas
-        $pedimentosMes = Operacion::where($filtroCliente)->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
+        $pedimentosMes = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
 
-        $pedimentosVerde = Operacion::where($filtroCliente)->where('modulacion', 'DESADUANAMIENTO LIBRE')->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
+        $pedimentosVerde = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->where('modulacion', 'DESADUANAMIENTO LIBRE')->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
 
-        $pedimentosRojo = Operacion::where($filtroCliente)->whereIn('modulacion', [
+        $pedimentosRojo = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->whereIn('modulacion', [
             'RECONOCIMIENTO ADUANERO',
             'RECONOCIMIENTO ADUANERO CONCLUIDO'
         ])->whereBetween('fecha_registro', [$inicioMes, $finMes])->count();
@@ -379,7 +379,7 @@ class DashboardController extends Controller
             $fechaFin = Carbon::parse($fechaFin);
         }
         // Evolución mensual con filtro de fechas
-        $evolucion = Operacion::where($filtroCliente)
+        $evolucion = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE_FORMAT(fecha, '%Y-%m') as mes, COUNT(*) as total")
             ->whereBetween('fecha_registro', [$fechaInicio, $fechaFin])
             ->groupBy('mes')
@@ -391,7 +391,7 @@ class DashboardController extends Controller
 
 
         // Evolución mensual (últimos 6 meses)
-        /*$evolucion = Operacion::where($filtroCliente)->select(
+        /*$evolucion = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->select(
             DB::raw("DATE_FORMAT(fecha, '%Y-%m') as mes"),
             DB::raw("COUNT(*) as total")
         )
@@ -405,7 +405,7 @@ class DashboardController extends Controller
         });
 
         $values = $evolucion->values();*/
-        /*$evolucion = Operacion::where('cliente_id', $user->cliente_id)
+        /*$evolucion = Operacion::where('cliente_id', $user->cliente_id)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE_FORMAT(fecha, '%Y-%m') as mes, COUNT(*) as total")
             ->where('fecha_registro', '>=', now()->subMonths(6))
             ->groupBy('mes')
@@ -416,7 +416,7 @@ class DashboardController extends Controller
         $values = $evolucion->values();*/
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where($filtroCliente)->with(['aduana', 'patente'])
+        $operacionesHoy = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')->with(['aduana', 'patente'])
             ->whereDate('fecha_registro', $hoy)
             ->orderBy('fecha_registro', 'desc')
             ->take(5)
@@ -468,21 +468,21 @@ class DashboardController extends Controller
         $finAnual = $hasta->copy()->endOfYear();
 
         // 2. MÉTRICAS KPI (Mes Actual)
-        $pedimentosMes = Operacion::where($filtroCliente)
+        $pedimentosMes = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->count();
 
-        $pedimentosVerde = Operacion::where($filtroCliente)
+        $pedimentosVerde = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->where('modulacion', 'DESADUANAMIENTO LIBRE')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->count();
 
-        $pedimentosRojo = Operacion::where($filtroCliente)
+        $pedimentosRojo = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereIn('modulacion', ['RECONOCIMIENTO ADUANERO', 'RECONOCIMIENTO ADUANERO CONCLUIDO'])
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->count();
 
-        $sobrepesosMes = Operacion::where($filtroCliente)
+        $sobrepesosMes = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->where('sobrepeso', '>', 0)
             ->count();
@@ -490,7 +490,7 @@ class DashboardController extends Controller
         // 3. DATOS PARA GRÁFICAS
 
         // A) Histórico Anual (LINEA) - Últimos 12 meses
-        $historialAnualData = Operacion::where($filtroCliente)
+        $historialAnualData = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE_FORMAT(fecha, '%Y-%m') as mes, COUNT(*) as total")
             ->whereBetween('fecha_registro', [$inicioAnual, $finAnual])
             ->groupBy('mes')
@@ -509,7 +509,7 @@ class DashboardController extends Controller
         }
 
         // B) Progreso Diario (BARRAS) - Mes Actual
-        $progresoDiarioData = Operacion::where($filtroCliente)
+        $progresoDiarioData = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE(fecha_registro) as dia, COUNT(*) as total")
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->groupBy('dia')
@@ -532,7 +532,7 @@ class DashboardController extends Controller
         // Ya calculados en $pedimentosVerde y $pedimentosRojo (Mes actual)
 
         // D) Operaciones por Aduana (STACKED BAR) - Mes actual
-        $porAduana = Operacion::where($filtroCliente)
+        $porAduana = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->whereBetween('operaciones.fecha', [$inicioMes, $finMes])
             ->selectRaw("
@@ -549,7 +549,7 @@ class DashboardController extends Controller
 
 
         // 4. OTROS DATOS (Top Importers, Calendar, Agenda)
-        $topImportadores = Operacion::join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
+        $topImportadores = Operacion::where('estado', '!=', 'cancelada')->join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
             ->select('importadores.nombre as importador', DB::raw('count(*) as total'))
             ->where('operaciones.cliente_id', $clienteId)
             ->whereBetween('operaciones.fecha', [$desde, $hasta])
@@ -599,7 +599,7 @@ class DashboardController extends Controller
             $calendario[] = $semana;
         }
 
-        $operacionesHoy = Operacion::where($filtroCliente)
+        $operacionesHoy = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->with(['aduana', 'expediente'])
             ->whereDate('fecha_registro', $hoy)
             ->orderBy('created_at', 'desc')
@@ -614,7 +614,7 @@ class DashboardController extends Controller
             ->get();
 
         // 5. WIDGET SIDEBAR: Importadores del Mes (Estrictamente mes actual)
-        $importadoresMes = Operacion::join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
+        $importadoresMes = Operacion::where('estado', '!=', 'cancelada')->join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
             ->select('importadores.nombre as importador', DB::raw('count(*) as total'))
             ->where($filtroCliente)
             ->whereBetween('operaciones.fecha', [$inicioMes, $finMes])
@@ -668,21 +668,21 @@ class DashboardController extends Controller
         $finAnual = $hasta->copy()->endOfYear();
 
         // 2. MÉTRICAS KPI (Mes Actual)
-        $pedimentosMes = Operacion::where($filtroCliente)
+        $pedimentosMes = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->count();
 
-        $pedimentosVerde = Operacion::where($filtroCliente)
+        $pedimentosVerde = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->where('modulacion', 'DESADUANAMIENTO LIBRE')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->count();
 
-        $pedimentosRojo = Operacion::where($filtroCliente)
+        $pedimentosRojo = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereIn('modulacion', ['RECONOCIMIENTO ADUANERO', 'RECONOCIMIENTO ADUANERO CONCLUIDO'])
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->count();
 
-        $sobrepesosMes = Operacion::where($filtroCliente)
+        $sobrepesosMes = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->where('sobrepeso', '>', 0)
             ->count();
@@ -690,7 +690,7 @@ class DashboardController extends Controller
         // 3. DATOS PARA GRÁFICAS
 
         // A) Histórico Anual (LINEA) - Últimos 12 meses
-        $historialAnualData = Operacion::where($filtroCliente)
+        $historialAnualData = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE_FORMAT(fecha, '%Y-%m') as mes, COUNT(*) as total")
             ->whereBetween('fecha_registro', [$inicioAnual, $finAnual])
             ->groupBy('mes')
@@ -709,7 +709,7 @@ class DashboardController extends Controller
         }
 
         // B) Progreso Diario (BARRAS) - Mes Actual
-        $progresoDiarioData = Operacion::where($filtroCliente)
+        $progresoDiarioData = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->selectRaw("DATE(fecha_registro) as dia, COUNT(*) as total")
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->groupBy('dia')
@@ -732,7 +732,7 @@ class DashboardController extends Controller
         // Ya calculados en $pedimentosVerde y $pedimentosRojo (Mes actual)
 
         // D) Operaciones por Aduana (STACKED BAR) - Mes actual
-        $porAduana = Operacion::where($filtroCliente)
+        $porAduana = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->whereBetween('operaciones.fecha', [$inicioMes, $finMes])
             ->selectRaw("
@@ -749,7 +749,7 @@ class DashboardController extends Controller
 
 
         // 4. OTROS DATOS (Top Importers, Calendar, Agenda)
-        $topImportadores = Operacion::join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
+        $topImportadores = Operacion::where('estado', '!=', 'cancelada')->join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
             ->select('importadores.nombre as importador', DB::raw('count(*) as total'))
             ->where('operaciones.cliente_id', $clienteId)
             ->whereBetween('operaciones.fecha', [$desde, $hasta])
@@ -799,7 +799,7 @@ class DashboardController extends Controller
             $calendario[] = $semana;
         }
 
-        $operacionesHoy = Operacion::where($filtroCliente)
+        $operacionesHoy = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->with(['aduana', 'expediente'])
             ->whereDate('fecha_registro', $hoy)
             ->orderBy('created_at', 'desc')
@@ -814,7 +814,7 @@ class DashboardController extends Controller
             ->get();
 
         // 5. WIDGET SIDEBAR: Importadores del Mes (Estrictamente mes actual)
-        $importadoresMes = Operacion::join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
+        $importadoresMes = Operacion::where('estado', '!=', 'cancelada')->join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
             ->select('importadores.nombre as importador', DB::raw('count(*) as total'))
             ->where($filtroCliente)
             ->whereBetween('operaciones.fecha', [$inicioMes, $finMes])
@@ -824,7 +824,7 @@ class DashboardController extends Controller
             ->get();
 
         // 6. PRODUCTO ESTRELLA (Mas repetido en el periodo)
-        $productoEstrella = Operacion::where($filtroCliente)
+        $productoEstrella = Operacion::where($filtroCliente)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_registro', [$inicioMes, $finMes])
             ->select('nombre_producto', DB::raw('count(*) as total'))
             ->groupBy('nombre_producto')

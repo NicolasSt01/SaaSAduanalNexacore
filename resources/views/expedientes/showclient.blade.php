@@ -1,537 +1,509 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="container-fluid px-4">
-        <!-- Header con breadcrumb y acciones -->
-        <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
-            <div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-                <h1 class="h3 mb-0">Expediente: <strong>{{ $expediente->numero_pedimento }}</strong></h1>
-            </div>
-            
+    {{-- Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-black text-gray-800">
+                Expediente:
+                <span class="text-indigo-600">{{ $expediente->numero_pedimento }}</span>
+            </h1>
         </div>
-
-        <!-- Alertas -->
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-
-        @if($errors->any())
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i> Por favor, corrige los errores en el formulario.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-
-        <div class="row">
-            <!-- Información principal -->
-            <div class="col-xl-8 col-lg-7">
-                <div class="card mb-4">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Información del
-                            Expediente</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Número de Pedimento</label>
-                                    <p class="mb-0 fs-6">{{ $expediente->numero_pedimento }}</p>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Cliente</label>
-                                    <p class="mb-0 fs-6">{{ $expediente->cliente->nombre_empresa }}</p>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Patente</label>
-                                    <p class="mb-0 fs-6">{{ $expediente->patente->numero_patente }}</p>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Aduana</label>
-                                    <p class="mb-0 fs-6">{{ $expediente->aduana->nombre_aduana }}</p>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Categoría</label>
-                                    <p class="mb-0 fs-6">
-                                        <span class="badge bg-info text-light">{{ $expediente->categoria }}</span>
-                                    </p>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Estado</label>
-                                    <p class="mb-0 fs-6">
-                                        @php
-                                            $estadoColors = [
-                                                'pendiente' => 'warning',
-                                                'Cerrado' => 'success',
-                                                'rechazado' => 'danger',
-                                                'en_revision' => 'info'
-                                            ];
-                                            $color = $estadoColors[$expediente->estado] ?? 'secondary';
-                                        @endphp
-                                        <span class="badge bg-{{ $color }}">{{ ucfirst($expediente->estado) }}</span>
-                                    </p>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small mb-1">Fecha de Pago</label>
-                                    <p class="mb-0 fs-6">
-                                        {{ optional($expediente->fecha_pago_pedimento)->format('d/m/Y') ?? '-' }}</p>
-                                </div>
-                                
-                            </div>
-                        </div>
-
-                        <div class="mt-3">
-                            <label class="form-label text-muted small mb-1">Observaciones</label>
-                            <p class="mb-0 fs-6">{{ $expediente->observaciones ?? 'Ninguna' }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Panel de estadísticas -->
-            <div class="col-xl-4 col-lg-5">
-                <div class="card mb-4">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Estadísticas de
-                            Documentos</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted">Total de documentos</span>
-                            <span class="badge bg-primary rounded-pill">{{ $expediente->documentos->count() }}</span>
-                        </div>
-
-                        @php
-                            $tiposDocumentos = $expediente->documentos->groupBy('tipo_documento');
-                        @endphp
-
-                        @foreach($tiposDocumentos as $tipo => $documentos)
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="text-muted">{{ $tipo }}</span>
-                                <span class="badge bg-secondary rounded-pill">{{ $documentos->count() }}</span>
-                            </div>
-                            <div class="progress mb-3" style="height: 6px;">
-                                <div class="progress-bar" role="progressbar"
-                                    style="width: {{ ($documentos->count() / $expediente->documentos->count()) * 100 }}%;"
-                                    aria-valuenow="{{ ($documentos->count() / $expediente->documentos->count()) * 100 }}"
-                                    aria-valuemin="0" aria-valuemax="100"></div>
-                            </div>
-                        @endforeach
-
-                        <div class="mt-4 text-center">
-                            <a href="{{ route('expedientes.downloadAll', $expediente) }}"
-                                class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-download me-1"></i> Descargar todos
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tabla de documentos -->
-        {{--<div class="card mb-4">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0"><i class="fas fa-file-alt me-2 text-primary"></i>Documentos del Expediente</h5>
-                
-            </div>
-            <div class="card-body">
-                @if($expediente->documentos->isEmpty())
-                    <div class="text-center py-5">
-                        <i class="fas fa-folder-open text-muted" style="font-size: 3rem;"></i>
-                        <p class="mt-3 text-muted">No hay documentos registrados para este expediente.</p>
-                        
-                    </div>
-                @else
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Tipo</th>
-                                    <th>Nombre</th>
-                                    <th>Fecha</th>
-                                    <th>Tamaño</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($expediente->documentos as $documento)
-                                    <tr>
-                                        <td>
-                                            <span class="badge bg-light text-dark">{{ $documento->tipo_documento }}</span>
-                                        </td>
-                                        <td>{{ $documento->nombre_documento }}</td>
-                                        <td>{{ $documento->fecha_documento ? $documento->fecha_documento->format('d/m/Y') : 'N/A' }}
-                                        </td>
-                                        <td>
-                                            @if($documento->archivo_path && file_exists(storage_path('app/' . $documento->archivo_path)))
-                                                {{ round(filesize(storage_path('app/' . $documento->archivo_path)) / 1024, 1) }} KB
-                                            @else
-                                                N/A
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{{ route('documentos.download', $documento) }}"
-                                                    class="btn btn-outline-success" title="Descargar">
-                                                    <i class="fas fa-download"></i>
-                                                </a>
-                                                <a href="#" class="btn btn-outline-primary" title="Vista previa"
-                                                    data-bs-toggle="modal" data-bs-target="#previewModal"
-                                                    data-documento-id="{{ $documento->id }}">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
-        </div>--}}
-
-        <!-- Tabla de documentos agrupados por operación -->
-<div class="card mb-4">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-file-alt me-2 text-primary"></i>Documentos del Expediente</h5>
-        
     </div>
-    <div class="card-body">
+
+    {{-- Alertas --}}
+    @if(session('success'))
+        <div class="mb-6 bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl shadow-sm">
+            <div class="flex">
+                <i class="fas fa-check-circle text-emerald-500 mt-0.5"></i>
+                <div class="ml-3">
+                    <p class="text-sm text-emerald-700 font-bold">{{ session('success') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-sm">
+            <div class="flex">
+                <i class="fas fa-exclamation-circle text-rose-500 mt-0.5"></i>
+                <div class="ml-3">
+                    <p class="text-sm font-bold text-rose-700">Por favor, corrige los errores en el formulario.</p>
+                    <ul class="mt-1 text-sm text-rose-600 list-disc list-inside">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {{-- Información principal --}}
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <h5 class="text-lg font-black text-gray-800 mb-6">
+                    <i class="fas fa-info-circle text-indigo-600 mr-2"></i>Información del Expediente
+                </h5>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Número de Pedimento</label>
+                        <p class="text-sm font-bold text-gray-800">{{ $expediente->numero_pedimento }}</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Cliente</label>
+                        <p class="text-sm font-bold text-gray-800">{{ $expediente->cliente->nombre }}</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Patente</label>
+                        <p class="text-sm font-bold text-gray-800">{{ $expediente->patente->numero_patente }}</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Aduana</label>
+                        <p class="text-sm font-bold text-gray-800">{{ $expediente->aduana->nombre_aduana }}</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Categoría</label>
+                        <p class="text-sm font-bold text-gray-800">
+                            <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border bg-blue-50 text-blue-700 border-blue-200">
+                                {{ $expediente->categoria }}
+                            </span>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Estado</label>
+                        <p class="text-sm font-bold text-gray-800">
+                            @php
+                                $estadoClasses = [
+                                    'pendiente' => 'bg-amber-50 text-amber-700 border-amber-200',
+                                    'Cerrado' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                    'rechazado' => 'bg-rose-50 text-rose-700 border-rose-200',
+                                    'en_revision' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                    'En proceso' => 'bg-amber-50 text-amber-700 border-amber-200',
+                                    'Abierto' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                    'Cancelado' => 'bg-rose-50 text-rose-700 border-rose-200',
+                                ];
+                                $badgeClass = $estadoClasses[$expediente->estado] ?? 'bg-gray-50 text-gray-700 border-gray-200';
+                            @endphp
+                            <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border {{ $badgeClass }}">
+                                {{ ucfirst($expediente->estado) }}
+                            </span>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Fecha de Pago</label>
+                        <p class="text-sm font-bold text-gray-800">
+                            {{ optional($expediente->fecha_pago_pedimento)->format('d/m/Y') ?? '-' }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Observaciones</label>
+                    <p class="text-sm font-bold text-gray-800">{{ $expediente->observaciones ?? 'Ninguna' }}</p>
+                </div>
+            </div>
+        </div>
+
+        {{-- Panel de estadísticas --}}
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <h5 class="text-lg font-black text-gray-800 mb-6">
+                    <i class="fas fa-chart-pie text-indigo-600 mr-2"></i>Estadísticas de Documentos
+                </h5>
+
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm text-gray-500 font-medium">Total de documentos</span>
+                    <span class="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 border border-indigo-200">
+                        {{ $expediente->documentos->count() }}
+                    </span>
+                </div>
+
+                @php
+                    $tiposDocumentos = $expediente->documentos->groupBy('tipo_documento');
+                    $totalDocs = $expediente->documentos->count();
+                @endphp
+
+                @foreach($tiposDocumentos as $tipo => $documentos)
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-gray-500 font-medium">{{ $tipo }}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-gray-100 text-gray-600 border border-gray-200">
+                            {{ $documentos->count() }}
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 mb-3 overflow-hidden">
+                        <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: {{ $totalDocs > 0 ? ($documentos->count() / $totalDocs) * 100 : 0 }}%;"></div>
+                    </div>
+                @endforeach
+
+                <div class="mt-6 text-center">
+                    <a href="{{ route('expedientes.downloadAll', $expediente) }}"
+                        class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
+                        <i class="fas fa-download"></i> Descargar todos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Documentos agrupados por operación --}}
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mt-6">
+        <div class="flex justify-between items-center mb-6">
+            <h5 class="text-lg font-black text-gray-800">
+                <i class="fas fa-file-alt text-indigo-600 mr-2"></i>Documentos del Expediente
+            </h5>
+        </div>
+
         @if($expediente->documentos->isEmpty())
-            <div class="text-center py-5">
-                <i class="fas fa-folder-open text-muted" style="font-size: 3rem;"></i>
-                <p class="mt-3 text-muted">No hay documentos registrados para este expediente.</p>
-                
+            <div class="text-center py-12">
+                <i class="fas fa-folder-open text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 font-medium">No hay documentos registrados para este expediente.</p>
             </div>
         @else
             @php
-                // Agrupar documentos por operacion_id
                 $documentosPorOperacion = $expediente->documentos->groupBy('operacion_id');
             @endphp
 
-            <div class="accordion" id="documentosAccordion">
+            <div id="documentosAccordion" class="space-y-3">
                 @foreach($documentosPorOperacion as $exportacionId => $documentos)
                     @php
-                        // Obtener información de la operación si existe
                         $exportacion = $documentos->first()->exportacion ?? null;
                         $operacionNombre = $exportacion ? $exportacion->nombre_operacion ?? "Operación #{$exportacionId}" : "Sin operación asignada";
                         $accordionId = "collapse-" . ($exportacionId ?? 'sin-operacion');
                     @endphp
-                    
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="heading-{{ $accordionId }}">
-                            <button class="accordion-button {{ $loop->first ? '' : 'collapsed' }}" type="button" 
-                                    data-bs-toggle="collapse" data-bs-target="#{{ $accordionId }}" 
-                                    aria-expanded="{{ $loop->first ? 'true' : 'false' }}" 
-                                    aria-controls="{{ $accordionId }}">
-                                <div class="d-flex align-items-center w-100">
-                                    <i class="fas fa-folder-open me-2 text-primary"></i>
-                                    <span class="fw-semibold">{{ $operacionNombre }}</span>
-                                    <span class="badge bg-secondary ms-auto me-2">{{ $documentos->count() }} documento(s)</span>
-                                </div>
-                            </button>
-                        </h2>
-                        <div id="{{ $accordionId }}" class="accordion-collapse collapse {{ $loop->first ? 'show' : '' }}" 
-                             aria-labelledby="heading-{{ $accordionId }}" data-bs-parent="#documentosAccordion">
-                            <div class="accordion-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-hover mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Tipo</th>
-                                                <th>Nombre</th>
-                                                <th>Fecha</th>
-                                                <th>Tamaño</th>
-                                                <th>Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($documentos as $documento)
-                                                <tr>
-                                                    <td>
-                                                        <span class="badge bg-light text-dark">{{ $documento->tipo_documento }}</span>
-                                                    </td>
-                                                    <td>{{ $documento->nombre_documento }}</td>
-                                                    <td>{{ $documento->fecha_documento ? $documento->fecha_documento->format('d/m/Y') : 'N/A' }}</td>
-                                                    <td>
-                                                        @if($documento->archivo_path && file_exists(storage_path('app/' . $documento->archivo_path)))
-                                                            {{ round(filesize(storage_path('app/' . $documento->archivo_path)) / 1024, 1) }} KB
-                                                        @else
-                                                            N/A
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            <a href="{{ route('documentos.download', $documento) }}"
-                                                                class="btn btn-outline-success" title="Descargar">
-                                                                <i class="fas fa-download"></i>
-                                                            </a>
-                                                            <a href="#" class="btn btn-outline-primary" title="Vista previa"
-                                                                data-bs-toggle="modal" data-bs-target="#previewModal"
-                                                                data-documento-id="{{ $documento->id }}">
-                                                                <i class="fas fa-eye"></i>
-                                                            </a>
-                                                            
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                                
-                                <!-- Información adicional de la operación (opcional) -->
-                                @if($exportacion)
-                                    <div class="p-3 bg-light border-top">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            Operación: {{ $exportacion->id ?? 'N/A' }} | 
-                                            Fecha: {{ $exportacion->fecha ? $exportacion->fecha->format('d/m/Y') : 'N/A' }}
-                                        </small>
-                                    </div>
-                                @endif
+
+                    <div class="border border-gray-200 rounded-2xl overflow-hidden">
+                        <button type="button"
+                            onclick="toggleAccordion('{{ $accordionId }}', this)"
+                            class="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors {{ $loop->first ? '' : '' }}"
+                            aria-expanded="{{ $loop->first ? 'true' : 'false' }}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-folder-open text-indigo-600"></i>
+                                <span class="text-sm font-bold text-gray-800">{{ $operacionNombre }}</span>
                             </div>
+                            <div class="flex items-center gap-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-black bg-gray-100 text-gray-600 border border-gray-200">
+                                    {{ $documentos->count() }} documento(s)
+                                </span>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 accordion-chevron {{ $loop->first ? 'rotate-180' : '' }}"></i>
+                            </div>
+                        </button>
+                        <div id="{{ $accordionId }}" class="border-t border-gray-100 {{ $loop->first ? '' : 'hidden' }}">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-4 py-3">Tipo</th>
+                                            <th class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-4 py-3">Nombre</th>
+                                            <th class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-4 py-3">Fecha</th>
+                                            <th class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-4 py-3">Tamaño</th>
+                                            <th class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-4 py-3">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($documentos as $documento)
+                                            <tr class="border-t border-gray-50 hover:bg-indigo-50/30 transition-colors">
+                                                <td class="px-4 py-3">
+                                                    <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-gray-50 text-gray-600 border-gray-200">
+                                                        {{ $documento->tipo_documento }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 text-sm font-bold text-gray-800">{{ $documento->nombre_documento }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-600">{{ $documento->fecha_documento ? $documento->fecha_documento->format('d/m/Y') : 'N/A' }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-600">
+                                                    @if($documento->archivo_path && file_exists(storage_path('app/' . $documento->archivo_path)))
+                                                        {{ round(filesize(storage_path('app/' . $documento->archivo_path)) / 1024, 1) }} KB
+                                                    @else
+                                                        N/A
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3">
+                                                    <div class="flex items-center gap-1">
+                                                        <a href="{{ route('documentos.download', $documento) }}"
+                                                            class="inline-flex items-center gap-1 px-2 py-1.5 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg font-bold text-xs hover:bg-emerald-100 transition-all"
+                                                            title="Descargar">
+                                                            <i class="fas fa-download"></i>
+                                                        </a>
+                                                        <button type="button" title="Vista previa"
+                                                            onclick="openPreviewModal('{{ $documento->id }}')"
+                                                            class="inline-flex items-center gap-1 px-2 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg font-bold text-xs hover:bg-blue-100 transition-all">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            @if($exportacion)
+                                <div class="p-3 bg-gray-50 border-t border-gray-100">
+                                    <small class="text-gray-500">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Operación: {{ $exportacion->id ?? 'N/A' }} |
+                                        Fecha: {{ $exportacion->fecha ? $exportacion->fecha->format('d/m/Y') : 'N/A' }}
+                                    </small>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
             </div>
 
-            <!-- Botón para expandir/contraer todos -->
-            <div class="text-center mt-3">
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleAllAccordions">
-                    <i class="fas fa-expand-arrows-alt me-1"></i> Expandir/Contraer todo
+            <div class="text-center mt-4">
+                <button type="button" id="toggleAllAccordions"
+                    class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
+                    <i class="fas fa-expand-arrows-alt"></i> Expandir/Contraer todo
                 </button>
             </div>
         @endif
     </div>
+
 </div>
 
-
-    </div>
-
-    <!-- Modal para agregar documento simplificado -->
-    <div class="modal fade" id="agregarDocumentoModal" tabindex="-1" aria-labelledby="agregarDocumentoModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="agregarDocumentoModalLabel">Agregar Documento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+{{-- Modal para agregar documento --}}
+<div id="agregarDocumentoModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm" aria-hidden="true" onclick="closeModal('agregarDocumentoModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-2xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="px-6 py-5 bg-indigo-600">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-black text-white">
+                        <i class="fas fa-file-upload mr-2"></i>Agregar Documento
+                    </h3>
+                    <button type="button" onclick="closeModal('agregarDocumentoModal')" class="text-white hover:text-indigo-200 focus:outline-none transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
                 </div>
-                <form action="{{ route('documentos.store', $expediente) }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    <div class="modal-body">
-                        <!-- Campo oculto para el tipo de documento (valor fijo: Otros) -->
-                        <input type="hidden" name="tipo_documento" value="Otro">
-
-                        <!-- Campo oculto para la fecha (se establecerá en el controlador) -->
-                        <input type="hidden" name="fecha_documento" value="{{ date('Y-m-d') }}">
-
-                        <div class="mb-3">
-                            <label for="archivo" class="form-label">Archivo PDF *</label>
-                            <input type="file" class="form-control" id="archivo" name="archivo" accept=".pdf" required
-                                onchange="document.getElementById('nombre_documento').value = this.files[0]?.name.split('.').slice(0, -1).join('.')">
-                            <div class="form-text">Tamaño máximo: 20MB. El nombre del archivo se usará como nombre del
-                                documento.</div>
-                        </div>
-
-                        <!-- Campo oculto para el nombre del documento (se llenará automáticamente) -->
-                        <input type="hidden" id="nombre_documento" name="nombre_documento">
-
-                        <div class="mb-3">
-                            <label for="observaciones" class="form-label">Observaciones (opcional)</label>
-                            <textarea class="form-control" id="observaciones" name="observaciones" rows="2"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar Documento</button>
-                    </div>
-                </form>
             </div>
+            <form action="{{ route('documentos.store', $expediente) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="px-6 py-6 bg-white flex flex-col gap-4">
+                    <input type="hidden" name="tipo_documento" value="Otro">
+                    <input type="hidden" name="fecha_documento" value="{{ date('Y-m-d') }}">
+                    <input type="hidden" id="nombre_documento" name="nombre_documento">
+
+                    <div>
+                        <label for="archivo" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Archivo PDF *</label>
+                        <input type="file" id="archivo" name="archivo" accept=".pdf" required
+                            onchange="document.getElementById('nombre_documento').value = this.files[0]?.name.split('.').slice(0, -1).join('.')"
+                            class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+                        <p class="text-xs text-gray-400 mt-1">Tamaño máximo: 20MB. El nombre del archivo se usará como nombre del documento.</p>
+                    </div>
+
+                    <div>
+                        <label for="observaciones" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Observaciones (opcional)</label>
+                        <textarea id="observaciones" name="observaciones" rows="2"
+                            class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm"></textarea>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeModal('agregarDocumentoModal')"
+                        class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-sm">
+                        Guardar Documento
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-    
-
-    <!-- Modal para vista previa -->
-<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="previewModalTitle">Vista previa del documento</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+{{-- Modal para vista previa --}}
+<div id="previewModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm" aria-hidden="true" onclick="closeModal('previewModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-2xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+            <div class="px-6 py-5 bg-indigo-600">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-black text-white">
+                        <i class="fas fa-eye mr-2"></i>Vista previa del documento
+                    </h3>
+                    <button type="button" onclick="closeModal('previewModal')" class="text-white hover:text-indigo-200 focus:outline-none transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
             </div>
-
-            <div class="modal-body">
-                <!-- IFRAME para vista previa -->
-                <iframe id="pdf-iframe" src="" width="100%" height="600" style="border:none;"></iframe>
+            <div class="p-4">
+                <iframe id="pdf-iframe" src="" width="100%" height="600" class="border-none rounded-xl"></iframe>
             </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <a href="#" id="downloadPreview" class="btn btn-primary">
-                    <i class="fas fa-download me-1"></i> Descargar
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="closeModal('previewModal')"
+                    class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
+                    Cerrar
+                </button>
+                <a href="#" id="downloadPreview"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-sm">
+                    <i class="fas fa-download"></i> Descargar
                 </a>
             </div>
         </div>
     </div>
 </div>
 
-    <!-- Modal para cerrar firma y colocar fecha de pago -->
-    <div class="modal fade" id="cerrarFirmaModal" tabindex="-1" aria-labelledby="cerrarFirmaModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="cerrarFirmaModalLabel">Cerrar Firma y Actualizar Pago</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Cerrar"></button>
+{{-- Modal para cerrar firma --}}
+<div id="cerrarFirmaModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm" aria-hidden="true" onclick="closeModal('cerrarFirmaModal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-2xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="px-6 py-5 bg-indigo-600">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-black text-white">
+                        <i class="fas fa-check-circle mr-2"></i>Cerrar Firma y Actualizar Pago
+                    </h3>
+                    <button type="button" onclick="closeModal('cerrarFirmaModal')" class="text-white hover:text-indigo-200 focus:outline-none transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
                 </div>
-
-                <form action="{{ route('expedientes.cerrarFirma', $expediente) }}" method="POST">
-                    @csrf
-                    @method('POST') {{-- O el método que uses para actualizar --}}
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="estado" class="form-label">Nuevo estado</label>
-                            <select name="estado" id="estado" class="form-select" required>
-                                <option value="En proceso" @selected($expediente->estado == 'En proceso')>En Proceso</option>
-                                <option value="Abierto" @selected($expediente->estado == 'Abierto')>Abierto</option>
-                                <option value="Cerrado" @selected($expediente->estado == 'Cerrado')>Cerrado</option>
-                                <option value="Cancelado" @selected($expediente->estado == 'Cancelado')>Cancelado</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="fecha_pago_pedimento" class="form-label">Fecha de Pago</label>
-                            <input type="date" class="form-control" id="fecha_pago_pedimento" name="fecha_pago_pedimento"
-                                value="{{ old('fecha_pago_pedimento', optional($expediente->fecha_pago_pedimento ?? now())->format('Y-m-d')) }}">
-                        </div>
-                        <div class="mb-3">
-                            <label for="fecha_cierre" class="form-label">Fecha de Cierre</label>
-                            <input type="date" class="form-control" id="fecha_cierre" name="fecha_cierre"
-                                value="{{ old('fecha_cierre', optional($expediente->fecha_cierre ?? now())->format('Y-m-d')) }}">
-                        </div>
-                        <div class="mb-3">
-                            <label for="observaciones" class="form-label">Observaciones (opcional)</label>
-                            <textarea class="form-control" id="observaciones" name="observaciones"
-                                rows="2">{{ old('observaciones', $expediente->observaciones) }}</textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar cambios</button>
-                    </div>
-                </form>
-
             </div>
+            <form action="{{ route('expedientes.cerrarFirma', $expediente) }}" method="POST">
+                @csrf
+                @method('POST')
+                <div class="px-6 py-6 bg-white flex flex-col gap-4">
+                    <div>
+                        <label for="estado" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Nuevo estado</label>
+                        <select name="estado" id="estado" required
+                            class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+                            <option value="En proceso" @selected($expediente->estado == 'En proceso')>En Proceso</option>
+                            <option value="Abierto" @selected($expediente->estado == 'Abierto')>Abierto</option>
+                            <option value="Cerrado" @selected($expediente->estado == 'Cerrado')>Cerrado</option>
+                            <option value="Cancelado" @selected($expediente->estado == 'Cancelado')>Cancelado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="fecha_pago_pedimento" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Fecha de Pago</label>
+                        <input type="date" id="fecha_pago_pedimento" name="fecha_pago_pedimento"
+                            value="{{ old('fecha_pago_pedimento', optional($expediente->fecha_pago_pedimento ?? now())->format('Y-m-d')) }}"
+                            class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+                    </div>
+                    <div>
+                        <label for="fecha_cierre" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Fecha de Cierre</label>
+                        <input type="date" id="fecha_cierre" name="fecha_cierre"
+                            value="{{ old('fecha_cierre', optional($expediente->fecha_cierre ?? now())->format('Y-m-d')) }}"
+                            class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">
+                    </div>
+                    <div>
+                        <label for="observaciones_cierre" class="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">Observaciones (opcional)</label>
+                        <textarea name="observaciones" id="observaciones_cierre" rows="2"
+                            class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50 text-sm">{{ old('observaciones', $expediente->observaciones) }}</textarea>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeModal('cerrarFirmaModal')"
+                        class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all shadow-sm">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-sm">
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-
-
-
-
-    <script>
+<script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Funcionalidad para expandir/contraer todos los acordeones
     const toggleButton = document.getElementById('toggleAllAccordions');
     if (toggleButton) {
-        let allExpanded = true; // Asumimos que el primer acordeón está expandido por defecto
-        
+        let allExpanded = true;
         toggleButton.addEventListener('click', function() {
-            const accordionCollapses = document.querySelectorAll('#documentosAccordion .accordion-collapse');
-            const accordionButtons = document.querySelectorAll('#documentosAccordion .accordion-button');
-            
-            accordionCollapses.forEach(function(collapse) {
-                const bsCollapse = new bootstrap.Collapse(collapse, {
-                    toggle: false
-                });
-                
+            const collapses = document.querySelectorAll('#documentosAccordion [id^="collapse-"]');
+            const chevrons = document.querySelectorAll('#documentosAccordion .accordion-chevron');
+
+            collapses.forEach(function(collapse) {
                 if (allExpanded) {
-                    bsCollapse.hide();
+                    collapse.classList.add('hidden');
                 } else {
-                    bsCollapse.show();
+                    collapse.classList.remove('hidden');
                 }
             });
-            
-            // Actualizar el estado de los botones
-            accordionButtons.forEach(function(button) {
+
+            chevrons.forEach(function(chevron) {
                 if (allExpanded) {
-                    button.classList.add('collapsed');
-                    button.setAttribute('aria-expanded', 'false');
+                    chevron.classList.remove('rotate-180');
                 } else {
-                    button.classList.remove('collapsed');
-                    button.setAttribute('aria-expanded', 'true');
+                    chevron.classList.add('rotate-180');
                 }
             });
-            
+
             allExpanded = !allExpanded;
-            
-            // Actualizar el texto del botón
+
             const icon = toggleButton.querySelector('i');
             if (allExpanded) {
-                icon.className = 'fas fa-compress-arrows-alt me-1';
+                icon.className = 'fas fa-compress-arrows-alt';
             } else {
-                icon.className = 'fas fa-expand-arrows-alt me-1';
+                icon.className = 'fas fa-expand-arrows-alt';
             }
         });
     }
 });
 </script>
 
-@endsection
-
 @push('scripts')
+<script>
+    function toggleAccordion(id, button) {
+        const collapse = document.getElementById(id);
+        const chevron = button.querySelector('.accordion-chevron');
+        collapse.classList.toggle('hidden');
+        if (chevron) {
+            chevron.classList.toggle('rotate-180');
+        }
+    }
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Autocompletar nombre del documento desde el nombre del archivo
-            const archivoInput = document.getElementById('archivo');
-            const nombreDocumentoInput = document.getElementById('nombre_documento');
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
 
-            if (archivoInput && nombreDocumentoInput) {
-                archivoInput.addEventListener('change', function () {
-                    if (this.files && this.files[0]) {
-                        const fileName = this.files[0].name;
-                        // Eliminar la extensión del archivo
-                        const baseName = fileName.split('.').slice(0, -1).join('.');
-                        nombreDocumentoInput.value = baseName;
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    function openPreviewModal(documentoId) {
+        const downloadLink = document.getElementById('downloadPreview');
+        downloadLink.href = '/documentos/' + documentoId + '/download';
+        const iframe = document.getElementById('pdf-iframe');
+        iframe.src = '/documentos/' + documentoId + '/preview#toolbar=0';
+        openModal('previewModal');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const archivoInput = document.getElementById('archivo');
+        const nombreDocumentoInput = document.getElementById('nombre_documento');
+        if (archivoInput && nombreDocumentoInput) {
+            archivoInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const fileName = this.files[0].name;
+                    const baseName = fileName.split('.').slice(0, -1).join('.');
+                    nombreDocumentoInput.value = baseName;
+                }
+            });
+        }
+
+        // Close modals on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.fixed.inset-0.z-50').forEach(function(modal) {
+                    if (!modal.classList.contains('hidden')) {
+                        modal.classList.add('hidden');
                     }
                 });
             }
-
-            // Manejar la vista previa
-            
         });
-    </script>
-
-    <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const previewModal = document.getElementById('previewModal');
-    if (previewModal) {
-        previewModal.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget; // el botón que abrió el modal
-            const documentoId = button.getAttribute('data-documento-id');
-
-            // enlace de descarga
-            const downloadLink = document.getElementById('downloadPreview');
-            downloadLink.href = `/documentos/${documentoId}/download`;
-
-            // cargar el PDF en el iframe
-            const iframe = document.getElementById('pdf-iframe');
-            iframe.src = `/documentos/${documentoId}/preview#toolbar=0`; 
-            // ^ esta ruta la tienes que crear en Laravel tal como te puse antes
-        });
-    }
-});
+    });
 </script>
-
 @endpush
+
+@endsection

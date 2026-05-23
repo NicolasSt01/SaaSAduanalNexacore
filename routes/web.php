@@ -47,9 +47,9 @@ Route::get('/', function () {
 })->name('home');
 
 // Página de prueba para alerts
-Route::get('/test-alerts', function () {
-    return view('test-alerts')->with('success', 'Este es un mensaje de prueba');
-});
+// Route::get('/test-alerts', function () {
+//     return view('test-alerts')->with('success', 'Este es un mensaje de prueba');
+// });
 
 // Reporte público (sin autenticación)
 Route::get('/reporte/{token}', [ReporteClienteMailController::class, 'verReportePublico'])
@@ -200,6 +200,10 @@ Route::middleware(['auth'])->group(function () {
     // --- Clientes ---
     Route::resource('clientes', ClienteController::class);
 
+    // Documentos de cliente (Art. 36-A)
+    Route::post('/clientes/{cliente}/documentos', [ClienteController::class, 'subirDocumento'])->name('clientes.subirDocumento');
+    Route::delete('/clientes/{cliente}/documentos/{documento}', [ClienteController::class, 'eliminarDocumento'])->name('clientes.eliminarDocumento');
+
     // --- Directorio de Notificaciones ---
     Route::resource('directorio', DirectorioController::class);
     Route::get('/api/directorio/cliente/{clienteId}', [DirectorioController::class, 'getContactosByCliente'])->name('api.directorio.cliente');
@@ -344,8 +348,8 @@ Route::middleware(['auth'])->prefix('trafico')->name('trafico.')->group(function
 });
 
 // Rutas de verificación de modulación (Bot)
-Route::get('/check', [OperacionController::class, 'check'])->name('operaciones.actualizarmodulacion');
-Route::get('/checktrafico', [OperacionController::class, 'checktrafico'])->name('operaciones.actualizarmodulacion2');
+// Route::get('/check', [OperacionController::class, 'check'])->name('operaciones.actualizarmodulacion');
+// Route::get('/checktrafico', [OperacionController::class, 'checktrafico'])->name('operaciones.actualizarmodulacion2');
 Route::get('/checktraficobot', [OperacionController::class, 'checkTraficoBot']);
 
 // ============================================================================
@@ -366,15 +370,20 @@ Route::middleware(['auth'])->prefix('documentador')->name('documentador.')->grou
     Route::post('/actualizar-estado/{id}', [DocumentadorController::class, 'updateEstado'])->name('updateEstado');
     Route::post('/actualiza/{id}', [DocumentadorController::class, 'actualizardatosoperacion'])->name('actualizardata');
     Route::post('/completar/{id}', [DocumentadorController::class, 'completarOperacion'])->name('completar');
+    Route::post('/cancelar/{id}', [DocumentadorController::class, 'cancelarOperacion'])->name('cancelarOperacion');
 
-    // --- Tomar/Soltar trámite ---
-    Route::post('/tomar-tramite', [DocumentadorController::class, 'tomarTramite'])->name('tomarTramite');
-    Route::post('/tramite/{id}/tomar', [DocumentadorController::class, 'tomarTramite2'])->name('tomar_tramite2');
-    Route::post('/take', [DocumentadorController::class, 'takeAssignment'])->name('tomar_tramite');
-    Route::post('/soltar-tramite/{id}', [DocumentadorController::class, 'soltarTramite'])->name('soltar_tramite');
+    // --- Tomar/Soltar trámite (No usado en este flujo de proyecto) ---
+    // Route::post('/tomar-tramite', [DocumentadorController::class, 'tomarTramite'])->name('tomarTramite');
+    // Route::post('/tramite/{id}/tomar', [DocumentadorController::class, 'tomarTramite2'])->name('tomar_tramite2');
+    // Route::post('/take', [DocumentadorController::class, 'takeAssignment'])->name('tomar_tramite');
+    // Route::post('/soltar-tramite/{id}', [DocumentadorController::class, 'soltarTramite'])->name('soltar_tramite');
 
     // --- Actualización de DODA/Pedimento ---
     Route::post('/update-doda/{id}', [DocumentadorController::class, 'updateDodaPedimento'])->name('updateDodaPedimento');
+
+    // --- API: Documentos de una operación (para modal details) ---
+    Route::get('/api/operaciones/{id}/documentos', [DocumentadorController::class, 'getDocumentosOperacion'])
+        ->name('api.operacion.documentos');
 });
 
 // ============================================================================
@@ -475,7 +484,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('reportes.cliente.pdf');
     Route::get('/reportes/operaciones_semanas', [ReporteController::class, 'operacionesPorSemanas'])
         ->name('reportes.operaciones_semanas');
-    Route::get('/reportes/demo', [ReporteController::class, 'operacionesPorSemanas2'])->name('reportes.demo');
+// Route::get('/reportes/demo', [ReporteController::class, 'operacionesPorSemanas2'])->name('reportes.demo');
     Route::get('/reportes/operaciones-diarias', [ReporteController::class, 'operacionesDiarias'])
         ->name('reportes.operaciones-diarias');
     Route::get('/api/reportes/operaciones-diarias', [ReporteController::class, 'operacionesDiariasApi'])
@@ -508,7 +517,7 @@ Route::middleware(['auth'])->group(function () {
         ->name('reportes.patrones-cliente');
 
     // --- Reportes Especiales ---
-    Route::get('/reportessemanas', [ReporteController::class, 'expsem']);
+// Route::get('/reportessemanas', [ReporteController::class, 'expsem']);
     Route::get('/reportes/calendario-primeras-operaciones', [ReporteController::class, 'calendarioPrimerasOperaciones'])
         ->name('reportes.calendario-primeras-operaciones');
 });
@@ -593,7 +602,6 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('dashcliente', [DashboardController::class, 'indexcliente'])->name('cliente.admindashboard2');
     Route::get('dashcliente2', [DashboardController::class, 'admincliente'])->name('cliente.admindashboard');
-    Route::get('dashcliente', [DashboardController::class, 'indexcliente'])->name('cliente.index');
     Route::get('dashcliente/operaciones', [DashboardController::class, 'operacionescliente'])->name('cliente.operacionescliente');
 });
 

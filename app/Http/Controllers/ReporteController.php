@@ -48,7 +48,7 @@ class ReporteController extends Controller
         $anio = $request->get('anio', now()->year);
 
         //Agrupar por mes
-        $tramites = Operacion::where('tenant_id', auth()->user()->tenant_id)->select(
+        $tramites = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select(
             DB::raw('MONTH(fecha_cruce_estimada) as mes'),
             DB::raw('COUNT(*) as total')
         )
@@ -94,7 +94,7 @@ class ReporteController extends Controller
         }
 
         // Consultar todos los años en un solo query
-        $tramites = Operacion::where('tenant_id', auth()->user()->tenant_id)->select(
+        $tramites = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select(
             DB::raw('YEAR(fecha_cruce_estimada) as anio'),
             DB::raw('MONTH(fecha_cruce_estimada) as mes'),
             DB::raw('COUNT(*) as total')
@@ -143,27 +143,27 @@ class ReporteController extends Controller
         }
 
         // Totales modulaciones
-        $total = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('cliente_id', $clienteId)
+        $total = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
             ->count();
 
-        $greens = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('cliente_id', $clienteId)
+        $greens = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
             ->where('modulacion', 'DESADUANAMIENTO LIBRE')
             ->count();
 
-        $reds = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('cliente_id', $clienteId)
+        $reds = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
             ->where('modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')
             ->count();
 
         // Por aduana
         /*
-         $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->select('aduana_id', DB::raw('count(*) as total'))
+         $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select('aduana_id', DB::raw('count(*) as total'))
          ->where('cliente_id', $clienteId)
          ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
          ->groupBy('aduana_id')->get();*/
-        $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre as nombre', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
@@ -171,7 +171,7 @@ class ReporteController extends Controller
             ->get();
 
         // Desglose por aduana
-        $verdesPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $verdesPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre as aduana', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
@@ -179,7 +179,7 @@ class ReporteController extends Controller
             ->groupBy('aduanas.nombre')
             ->get();
 
-        $rojosPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $rojosPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre as aduana', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
@@ -188,7 +188,7 @@ class ReporteController extends Controller
             ->get();
 
         // Histórico por mes
-        $historial = Operacion::where('tenant_id', auth()->user()->tenant_id)->select(
+        $historial = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select(
             DB::raw('YEAR(fecha_cruce_estimada) as anio'),
             DB::raw('MONTH(fecha_cruce_estimada) as mes'),
             DB::raw('count(*) as total')
@@ -248,27 +248,27 @@ class ReporteController extends Controller
         }
 
         // Totales modulaciones
-        $total = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('cliente_id', $clienteId)
+        $total = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
             ->count();
 
-        $greens = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('cliente_id', $clienteId)
+        $greens = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
             ->where('modulacion', 'DESADUANAMIENTO LIBRE')
             ->count();
 
-        $reds = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('cliente_id', $clienteId)
+        $reds = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
             ->where('modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')
             ->count();
 
         // Por aduana
         /*
-         $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->select('aduana_id', DB::raw('count(*) as total'))
+         $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select('aduana_id', DB::raw('count(*) as total'))
          ->where('cliente_id', $clienteId)
          ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
          ->groupBy('aduana_id')->get();*/
-        $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $porAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre as nombre', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
@@ -276,7 +276,7 @@ class ReporteController extends Controller
             ->get();
 
         // Desglose por aduana
-        $verdesPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $verdesPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre as aduana', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
@@ -284,7 +284,7 @@ class ReporteController extends Controller
             ->groupBy('aduanas.nombre')
             ->get();
 
-        $rojosPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $rojosPorAduana = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre as aduana', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
@@ -293,7 +293,7 @@ class ReporteController extends Controller
             ->get();
 
         // Histórico por mes
-        $historial = Operacion::where('tenant_id', auth()->user()->tenant_id)->select(
+        $historial = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select(
             DB::raw('YEAR(fecha_cruce_estimada) as anio'),
             DB::raw('MONTH(fecha_cruce_estimada) as mes'),
             DB::raw('count(*) as total')
@@ -329,7 +329,7 @@ class ReporteController extends Controller
         }
 
         // Obtener conteo real por día
-        $rawPorDia = Operacion::where('tenant_id', auth()->user()->tenant_id)->select(
+        $rawPorDia = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select(
             DB::raw('DATE(fecha_cruce_estimada) as fecha'),
             DB::raw('count(*) as total')
         )
@@ -353,16 +353,17 @@ class ReporteController extends Controller
             $cursor->addDay();
         }
         // ===============================
-// NUEVA SECCIÓN: Calendario mensual
-// ===============================
+        // NUEVA SECCIÓN: Calendario mensual
+        // ===============================
 
-        $mesCalendario = $request->input('mes_calendario', now()->format('Y-m'));
+        // Sincronizar con el rango de fechas seleccionado (usar el mes de $hasta por defecto)
+        $mesCalendario = $request->input('mes_calendario', Carbon::parse($hasta)->format('Y-m'));
 
         $inicioMes = Carbon::createFromFormat('Y-m', $mesCalendario)->startOfMonth();
         $finMes = Carbon::createFromFormat('Y-m', $mesCalendario)->endOfMonth();
 
         // Conteo real por día
-        $rawCalendario = Operacion::where('tenant_id', auth()->user()->tenant_id)->select(
+        $rawCalendario = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->select(
             DB::raw('DATE(fecha_cruce_estimada) as fecha'),
             DB::raw('count(*) as total')
         )
@@ -428,7 +429,7 @@ class ReporteController extends Controller
         $fechaCarbon = Carbon::parse($fecha);
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana'])
+        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana'])
             ->whereDate('fecha_cruce_estimada', $fechaCarbon)
             ->get();
 
@@ -494,7 +495,7 @@ class ReporteController extends Controller
         $detenidas = 0; // Ajusta según tu lógica
 
         // Pedimentos por aduana (para el día siguiente)
-        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->with('aduana')
+        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with('aduana')
             ->whereDate('fecha_cruce_estimada', $fechaCarbon->copy()->addDay())
             ->get()
             ->groupBy('aduana_id')
@@ -532,7 +533,7 @@ class ReporteController extends Controller
         $fechaCarbon = Carbon::parse($fecha);
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana'])
+        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana'])
             ->whereDate('fecha_cruce_estimada', $fechaCarbon)
             ->get();
 
@@ -580,7 +581,7 @@ class ReporteController extends Controller
         $detenidas = 0;
 
         // Pedimentos por aduana (para el día siguiente)
-        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->with('aduana')
+        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with('aduana')
             ->whereDate('fecha_cruce_estimada', $fechaCarbon->copy()->addDay())
             ->get()
             ->groupBy('aduana_id')
@@ -614,7 +615,7 @@ class ReporteController extends Controller
         $fechaCarbon = Carbon::parse($fecha);
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana'])
+        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana'])
             ->whereDate('fecha_cruce_estimada', $fechaCarbon)
             ->get();
 
@@ -705,7 +706,7 @@ class ReporteController extends Controller
         $detenidas = 0; // Ajusta según tu lógica
 
         // Pedimentos por aduana (para el día siguiente)
-        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->with('aduana')
+        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with('aduana')
             ->whereDate('fecha_cruce_estimada', $fechaCarbon->copy()->addDay())
             ->get()
             ->groupBy('aduana_id')
@@ -783,7 +784,7 @@ class ReporteController extends Controller
         $fechaCarbon = Carbon::parse($fecha);
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana'])
+        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana'])
             ->whereDate('fecha_cruce_estimada', $fechaCarbon)
             ->get();
 
@@ -854,7 +855,7 @@ class ReporteController extends Controller
         $detenidas = 0;
 
         // Pedimentos por aduana (para el día siguiente)
-        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->with('aduana')
+        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with('aduana')
             ->whereDate('fecha_cruce_estimada', $fechaCarbon->copy()->addDay())
             ->get()
             ->groupBy('aduana_id')
@@ -936,7 +937,7 @@ class ReporteController extends Controller
         $tramitesSemanaActual = [];
         for ($i = 0; $i < 7; $i++) {
             $diaActual = $inicioSemanaActual->copy()->addDays($i);
-            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereDate('fecha_cruce_estimada', $diaActual)->count();
+            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereDate('fecha_cruce_estimada', $diaActual)->count();
             $tramitesSemanaActual[] = [
                 'dia' => $diaActual->locale('es')->isoFormat('ddd'), // Lun, Mar, Mié, etc.
                 'fecha_cruce_estimada' => $diaActual->format('Y-m-d'),
@@ -947,7 +948,7 @@ class ReporteController extends Controller
         $tramitesSemanaPasada = [];
         for ($i = 0; $i < 7; $i++) {
             $diaPasado = $inicioSemanaPasada->copy()->addDays($i);
-            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereDate('fecha_cruce_estimada', $diaPasado)->count();
+            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereDate('fecha_cruce_estimada', $diaPasado)->count();
             $tramitesSemanaPasada[] = [
                 'dia' => $diaPasado->locale('es')->isoFormat('ddd'),
                 'fecha_cruce_estimada' => $diaPasado->format('Y-m-d'),
@@ -957,7 +958,7 @@ class ReporteController extends Controller
 
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana'])
+        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana'])
             ->whereDate('fecha_cruce_estimada', $fechaCarbon)
             ->get();
 
@@ -1048,7 +1049,7 @@ class ReporteController extends Controller
         $detenidas = 0; // Ajusta según tu lógica
 
         // Pedimentos por aduana (para el día siguiente)
-        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->with('aduana')
+        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with('aduana')
             ->whereDate('fecha_cruce_estimada', $fechaCarbon->copy()->addDay())
             ->get()
             ->groupBy('aduana_id')
@@ -1138,7 +1139,7 @@ class ReporteController extends Controller
         $tramitesSemanaActual = [];
         for ($i = 0; $i < 7; $i++) {
             $diaActual = $inicioSemanaActual->copy()->addDays($i);
-            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereDate('fecha_cruce_estimada', $diaActual)->count();
+            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereDate('fecha_cruce_estimada', $diaActual)->count();
             $tramitesSemanaActual[] = [
                 'dia' => $diaActual->locale('es')->isoFormat('ddd'), // Lun, Mar, Mié, etc.
                 'fecha_cruce_estimada' => $diaActual->format('Y-m-d'),
@@ -1149,7 +1150,7 @@ class ReporteController extends Controller
         $tramitesSemanaPasada = [];
         for ($i = 0; $i < 7; $i++) {
             $diaPasado = $inicioSemanaPasada->copy()->addDays($i);
-            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereDate('fecha_cruce_estimada', $diaPasado)->count();
+            $count = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereDate('fecha_cruce_estimada', $diaPasado)->count();
             $tramitesSemanaPasada[] = [
                 'dia' => $diaPasado->locale('es')->isoFormat('ddd'),
                 'fecha_cruce_estimada' => $diaPasado->format('Y-m-d'),
@@ -1158,7 +1159,7 @@ class ReporteController extends Controller
         }
 
         // Operaciones del día
-        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana'])
+        $operacionesHoy = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana'])
             ->whereDate('fecha_cruce_estimada', $fechaCarbon)
             ->get();
 
@@ -1229,7 +1230,7 @@ class ReporteController extends Controller
         $detenidas = 0;
 
         // Pedimentos por aduana (para el día siguiente)
-        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->with('aduana')
+        $pedimentosProximos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with('aduana')
             ->whereDate('fecha_cruce_estimada', $fechaCarbon->copy()->addDay())
             ->get()
             ->groupBy('aduana_id')
@@ -1315,24 +1316,30 @@ class ReporteController extends Controller
 
         $fecha_inicio = $request->fecha_inicio;
         $fecha_fin = $request->fecha_fin;
+        $tenantId = auth()->user()->tenant_id;
 
         // 2. Consulta y Ordenamiento de Clientes
-        $reporte = Cliente::with([
-            'operaciones' => function ($query) use ($fecha_inicio, $fecha_fin) {
-                // Relación: Filtra operaciones dentro del rango de fechas y agrupa por semana
-                $query->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin])
-                    ->select([
-                        'cliente_id',
-                        // Utilizamos WEEK(fecha_cruce_estimada, 3) para la semana (lunes como primer día, semana 1 con 4 días)
-                        DB::raw('WEEK(fecha_cruce_estimada, 3) as semana'),
-                        DB::raw('COUNT(*) as total_operaciones')
-                    ])
-                    ->groupBy('cliente_id', DB::raw('WEEK(fecha_cruce_estimada, 3)'));
-            }
-        ])
+        $reporte = Cliente::where('tenant_id', $tenantId)
+            ->with([
+                'operaciones' => function ($query) use ($fecha_inicio, $fecha_fin, $tenantId) {
+                    // Relación: Filtra operaciones dentro del rango de fechas y agrupa por semana
+                    $query->where('tenant_id', $tenantId)
+                        ->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin])
+                        ->where('estado', '!=', 'cancelada')
+                        ->select([
+                            'cliente_id',
+                            // Utilizamos WEEK(fecha_cruce_estimada, 3) para la semana (lunes como primer día, semana 1 con 4 días)
+                            DB::raw('WEEK(fecha_cruce_estimada, 3) as semana'),
+                            DB::raw('COUNT(*) as total_operaciones')
+                        ])
+                        ->groupBy('cliente_id', DB::raw('WEEK(fecha_cruce_estimada, 3)'));
+                }
+            ])
             // Solo incluye Clientes que tengan Operaciones en el rango de fechas
-            ->whereHas('operaciones', function ($query) use ($fecha_inicio, $fecha_fin) {
-                $query->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin]);
+            ->whereHas('operaciones', function ($query) use ($fecha_inicio, $fecha_fin, $tenantId) {
+                $query->where('tenant_id', $tenantId)
+                    ->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin])
+                    ->where('estado', '!=', 'cancelada');
             })
             // ⭐ MODIFICACIÓN: Ordena los clientes alfabéticamente por nombre
             ->orderBy('nombre', 'asc')
@@ -1371,12 +1378,15 @@ class ReporteController extends Controller
          */
         $fecha_inicio = $request->fecha_inicio;
         $fecha_fin = $request->fecha_fin;
+        $tenantId = auth()->user()->tenant_id;
 
         // 2. Consulta y Ordenamiento de Clientes
-        $reporte = Cliente::with([
-            'operaciones' => function ($query) use ($fecha_inicio, $fecha_fin) {
+        $reporte = Cliente::where('tenant_id', $tenantId)->with([
+            'operaciones' => function ($query) use ($fecha_inicio, $fecha_fin, $tenantId) {
                 // Relación: Filtra operaciones dentro del rango de fechas y agrupa por semana
-                $query->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin])
+                $query->where('tenant_id', $tenantId)
+                    ->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin])
+                    ->where('estado', '!=', 'cancelada')
                     ->select([
                         'cliente_id',
                         // Utilizamos WEEK(fecha_cruce_estimada, 3) para la semana (lunes como primer día, semana 1 con 4 días)
@@ -1387,8 +1397,10 @@ class ReporteController extends Controller
             }
         ])
             // Solo incluye Clientes que tengan Operaciones en el rango de fechas
-            ->whereHas('operaciones', function ($query) use ($fecha_inicio, $fecha_fin) {
-                $query->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin]);
+            ->whereHas('operaciones', function ($query) use ($fecha_inicio, $fecha_fin, $tenantId) {
+                $query->where('tenant_id', $tenantId)
+                    ->whereBetween('fecha_cruce_estimada', [$fecha_inicio, $fecha_fin])
+                    ->where('estado', '!=', 'cancelada');
             })
             // ⭐ MODIFICACIÓN: Ordena los clientes alfabéticamente por nombre
             ->orderBy('nombre', 'asc')
@@ -1456,7 +1468,7 @@ class ReporteController extends Controller
         /**
          * 1️⃣ Meses cerrados (anteriores al mes actual/filtrado)
          */
-        $remesasPorMes = Operacion::where('tenant_id', auth()->user()->tenant_id)->selectRaw("
+        $remesasPorMes = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->selectRaw("
         MONTH(fecha_cruce_estimada) as mes_numero,
         MONTHNAME(fecha_cruce_estimada) as mes,
         COUNT(*) as total
@@ -1487,7 +1499,7 @@ class ReporteController extends Controller
         $remesasSemanaMesActual = collect([]);
 
         if ($mostrarSemanas) {
-            $remesasSemanaMesActual = Operacion::where('tenant_id', auth()->user()->tenant_id)->selectRaw("
+            $remesasSemanaMesActual = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->selectRaw("
             WEEK(fecha_cruce_estimada, 1)
             - WEEK(DATE_SUB(fecha_cruce_estimada, INTERVAL DAYOFMONTH(fecha_cruce_estimada)-1 DAY), 1)
             + 1 as semana_mes,
@@ -1587,7 +1599,7 @@ class ReporteController extends Controller
         if ($clienteId) {
             $clientesActivos = 1;
         } else {
-            $clientesActivos = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereYear('fecha_cruce_estimada', $anioActual)
+            $clientesActivos = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereYear('fecha_cruce_estimada', $anioActual)
                 ->when(!$esAnioCerrado || !empty($mes), function ($query) use ($mesActual) {
                     return $query->whereMonth('fecha_cruce_estimada', '<=', $mesActual);
                 })
@@ -1596,7 +1608,7 @@ class ReporteController extends Controller
         }
 
         // Obtener años disponibles para el select
-        $aniosDisponibles = Operacion::where('tenant_id', auth()->user()->tenant_id)->selectRaw('YEAR(fecha_cruce_estimada) as year')
+        $aniosDisponibles = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->selectRaw('YEAR(fecha_cruce_estimada) as year')
             ->distinct()
             ->orderBy('year', 'desc')
             ->pluck('year');
@@ -1673,7 +1685,7 @@ class ReporteController extends Controller
         $mes = $request->get('month', '');
         $clienteId = $request->get('cliente_id', '');
 
-        $query = Operacion::where('tenant_id', auth()->user()->tenant_id)->with(['cliente', 'aduana', 'patente'])
+        $query = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'patente'])
             ->whereYear('fecha_cruce_estimada', $anio);
 
         if ($mes) {
@@ -1696,7 +1708,7 @@ class ReporteController extends Controller
         $mes = $request->get('month', '');
         $clienteId = $request->get('cliente_id', '');
 
-        $query = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereYear('fecha_cruce_estimada', $anio);
+        $query = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereYear('fecha_cruce_estimada', $anio);
 
         if ($mes) {
             $query->whereMonth('fecha_cruce_estimada', $mes);
@@ -1747,7 +1759,7 @@ class ReporteController extends Controller
          2️⃣ Query base de operaciones de la semana
          ===================================================== */
 
-        $operacionesQuery = Operacion::where('tenant_id', auth()->user()->tenant_id)
+        $operacionesQuery = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin]);
 
         $operaciones = (clone $operacionesQuery)->get();
@@ -1863,8 +1875,9 @@ class ReporteController extends Controller
          9️⃣ Pedimentos por aduana y patente
          ===================================================== */
 
-        $pedimentosPorAduanaPatente = Expediente::whereHas('operaciones', function ($q) use ($fechaInicio, $fechaFin) {
-            $q->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin]);
+        $pedimentosPorAduanaPatente = Expediente::where('tenant_id', auth()->user()->tenant_id)->whereHas('operaciones', function ($q) use ($fechaInicio, $fechaFin) {
+            $q->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin])
+                ->where('estado', '!=', 'cancelada');
         })
             ->select(
                 'aduana_id',
@@ -2005,7 +2018,7 @@ class ReporteController extends Controller
          3️⃣ QUERY BASE - PERÍODO ACTUAL
          ===================================================== */
 
-        $operacionesQuery = Operacion::where('tenant_id', auth()->user()->tenant_id)
+        $operacionesQuery = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')
             ->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin]);
 
         $operaciones = (clone $operacionesQuery)->get();
@@ -2014,7 +2027,7 @@ class ReporteController extends Controller
          4️⃣ QUERY BASE - PERÍODO ANTERIOR
          ===================================================== */
 
-        $operacionesAnteriores = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereBetween('fecha_cruce_estimada', [$fechaInicioAnterior, $fechaFinAnterior])->get();
+        $operacionesAnteriores = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereBetween('fecha_cruce_estimada', [$fechaInicioAnterior, $fechaFinAnterior])->get();
 
         /* =====================================================
          5️⃣ KPIs PRINCIPALES - PERÍODO ACTUAL
@@ -2182,8 +2195,9 @@ class ReporteController extends Controller
          1️⃣8️⃣ PEDIMENTOS POR ADUANA Y PATENTE - PERÍODO ACTUAL
          ===================================================== */
 
-        $pedimentosPorAduanaPatente = Expediente::whereHas('operaciones', function ($q) use ($fechaInicio, $fechaFin) {
-            $q->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin]);
+        $pedimentosPorAduanaPatente = Expediente::where('tenant_id', auth()->user()->tenant_id)->whereHas('operaciones', function ($q) use ($fechaInicio, $fechaFin) {
+            $q->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin])
+                ->where('estado', '!=', 'cancelada');
         })
             ->select(
                 'aduana_id',
@@ -2265,14 +2279,14 @@ class ReporteController extends Controller
         $anioAnterior = $anioActual - 1;
 
         // Operaciones por mes del año actual
-        $operacionesPorMesActual = Operacion::where('tenant_id', auth()->user()->tenant_id)->selectRaw("MONTH(fecha_cruce_estimada) as mes, COUNT(*) as total")
+        $operacionesPorMesActual = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->selectRaw("MONTH(fecha_cruce_estimada) as mes, COUNT(*) as total")
             ->whereYear('fecha_cruce_estimada', $anioActual)
             ->groupBy('mes')
             ->orderBy('mes')
             ->pluck('total', 'mes');
 
         // Operaciones por mes del año anterior
-        $operacionesPorMesAnterior = Operacion::where('tenant_id', auth()->user()->tenant_id)->selectRaw("MONTH(fecha_cruce_estimada) as mes, COUNT(*) as total")
+        $operacionesPorMesAnterior = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->selectRaw("MONTH(fecha_cruce_estimada) as mes, COUNT(*) as total")
             ->whereYear('fecha_cruce_estimada', $anioAnterior)
             ->groupBy('mes')
             ->orderBy('mes')
@@ -2382,7 +2396,7 @@ class ReporteController extends Controller
          2️⃣ TOP 15 CLIENTES (desde enero 2025 hasta hoy)
          ===================================================== */
 
-        $top15Clientes = Operacion::where('tenant_id', auth()->user()->tenant_id)->selectRaw('cliente_id, COUNT(*) as total')
+        $top15Clientes = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->selectRaw('cliente_id, COUNT(*) as total')
             ->whereBetween('fecha_cruce_estimada', [
                 Carbon::create(2025, 1, 1),
                 now()
@@ -2397,7 +2411,7 @@ class ReporteController extends Controller
          3️⃣ OPERACIONES DEL MES ACTUAL (solo top 15)
          ===================================================== */
 
-        $operacionesMesActual = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin])
+        $operacionesMesActual = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin])
             ->whereIn('cliente_id', $top15Clientes)
             ->with('cliente')
             ->get();
@@ -2406,7 +2420,7 @@ class ReporteController extends Controller
          4️⃣ OPERACIONES DEL MES ANTERIOR (para rangos)
          ===================================================== */
 
-        $operacionesMesReferencia = Operacion::where('tenant_id', auth()->user()->tenant_id)->whereBetween('fecha_cruce_estimada', [$fechaInicioReferencia, $fechaFinReferencia])
+        $operacionesMesReferencia = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->whereBetween('fecha_cruce_estimada', [$fechaInicioReferencia, $fechaFinReferencia])
             ->whereIn('cliente_id', $top15Clientes)
             ->get();
 
@@ -2683,7 +2697,7 @@ class ReporteController extends Controller
         // Obtener la fecha de la primera exportación de cada cliente
         // IMPORTANTE: Usar Eloquent para que el global scope de tenant se aplique
         $tenantId = auth()->user()->tenant_id;
-        $primerasOperaciones = Operacion::where('tenant_id', auth()->user()->tenant_id)->join('cliente', 'operaciones.cliente_id', '=', 'cliente.id')
+        $primerasOperaciones = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->join('cliente', 'operaciones.cliente_id', '=', 'cliente.id')
             ->select(
                 'operaciones.cliente_id',
                 'cliente.nombre as cliente_nombre',
@@ -2752,7 +2766,7 @@ class ReporteController extends Controller
 
         // Obtener TODOS los clientes con operaciones en esta aduana/rango (para el filtro de checkboxes)
         // NOTA: El join bypassa el global scope de Cliente, pero Operacion ya filtra por tenant
-        $clientesDisponibles = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)->join('cliente', 'operaciones.cliente_id', '=', 'cliente.id')
+        $clientesDisponibles = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)->where('operaciones.estado', '!=', 'cancelada')->join('cliente', 'operaciones.cliente_id', '=', 'cliente.id')
             ->where('operaciones.aduana_id', $aduanaId)
             ->whereBetween('operaciones.fecha_cruce_estimada', [$fechaInicio, $fechaFin])
             ->whereNull('cliente.deleted_at')
@@ -2762,7 +2776,7 @@ class ReporteController extends Controller
             ->get();
 
         // Query base con exclusión de clientes
-        $queryBase = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)->where('operaciones.aduana_id', $aduanaId)
+        $queryBase = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)->where('operaciones.estado', '!=', 'cancelada')->where('operaciones.aduana_id', $aduanaId)
             ->whereBetween('operaciones.fecha_cruce_estimada', [$fechaInicio, $fechaFin]);
 
         if (!empty($clientesExcluidos)) {
@@ -2773,7 +2787,7 @@ class ReporteController extends Controller
         $totalOperaciones = (clone $queryBase)->count();
 
         // KPI: Total pedimentos (expedientes únicos con numero_pedimento)
-        $queryPedimentos = Expediente::where('aduana_id', $aduanaId)
+        $queryPedimentos = Expediente::where('tenant_id', auth()->user()->tenant_id)->where('aduana_id', $aduanaId)
             ->whereNotNull('numero_pedimento')
             ->where('numero_pedimento', '!=', '')
             ->where(function ($q) use ($fechaInicio, $fechaFin) {
@@ -2805,7 +2819,7 @@ class ReporteController extends Controller
 
         // Agregar pedimentos por cliente
         foreach ($desglosePorCliente as $item) {
-            $qPed = Expediente::where('aduana_id', $aduanaId)
+            $qPed = Expediente::where('tenant_id', auth()->user()->tenant_id)->where('aduana_id', $aduanaId)
                 ->where('cliente_id', $item->cliente_id)
                 ->whereNotNull('numero_pedimento')
                 ->where('numero_pedimento', '!=', '')
@@ -2849,7 +2863,7 @@ class ReporteController extends Controller
             $aduanaComparacion = Aduana::find($comparacionId);
 
             if ($aduanaComparacion) {
-                $compOperacionesPorMes = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('aduana_id', $comparacionId)
+                $compOperacionesPorMes = Operacion::where('tenant_id', auth()->user()->tenant_id)->where('estado', '!=', 'cancelada')->where('aduana_id', $comparacionId)
                     ->whereBetween('fecha_cruce_estimada', [$fechaInicio, $fechaFin])
                     ->select(
                         DB::raw('MONTH(fecha_cruce_estimada) as mes'),
@@ -2861,7 +2875,7 @@ class ReporteController extends Controller
                     ->orderBy('mes')
                     ->get();
 
-                $compPedimentosPorMes = Expediente::where('aduana_id', $comparacionId)
+                $compPedimentosPorMes = Expediente::where('tenant_id', auth()->user()->tenant_id)->where('aduana_id', $comparacionId)
                     ->whereNotNull('numero_pedimento')
                     ->where('numero_pedimento', '!=', '')
                     ->where(function ($q) use ($fechaInicio, $fechaFin) {

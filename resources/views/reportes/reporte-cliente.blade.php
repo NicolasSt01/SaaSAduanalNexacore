@@ -84,7 +84,7 @@
                         </div>
                         <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Operaciones</span>
                     </div>
-                    <div class="text-4xl font-black text-gray-900 dark:text-white mb-1">{{ $greens + $reds }}</div>
+                    <div class="text-4xl font-black text-gray-900 dark:text-white mb-1">{{ $total }}</div>
                     <p class="text-xs text-gray-500 font-medium">Trámites acumulados en el periodo</p>
                 </div>
 

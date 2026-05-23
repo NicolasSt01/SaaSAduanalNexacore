@@ -936,7 +936,7 @@ public function indexNews(Request $request)
                 'cliente',
                 'patente',
                 'operaciones' => function ($query) {
-                    $query->with('ConceptosAdicionales');
+                    $query->with('ConceptosAdicionales')->where('estado', '!=', 'cancelada');
                 }
             ]);
 
@@ -1607,6 +1607,7 @@ private function calcularRangoSemana($anio, $numeroSemana)
             ->where('cliente_id', $clienteId)
             ->where('patente_id', $patenteId)
             ->whereBetween('fecha_registro', [$fechaInicio, $fechaFin])
+            ->where('estado', '!=', 'cancelada')
             ->get();
 
         // Agrupar por expediente
@@ -1994,6 +1995,7 @@ public function detalleExpediente(Request $request, $expedienteId)
         // Obtener todas las operaciones del expediente con conceptos adicionales
         $operaciones = Operacion::with(['cliente', 'patente', 'bodega', 'importador', 'conceptosAdicionales'])
             ->where('pedimento_id', $expedienteId)
+            ->where('estado', '!=', 'cancelada')
             //->whereBetween('fecha_registro', [$fechaInicio, $fechaFin])
             ->orderBy('fecha_registro', 'desc')
             ->get();

@@ -76,7 +76,7 @@ class SistemaNotificacionesService
                         '⚠️ Límite de SOIA-Bot cercano',
                         "Has usado {$usadas} de {$limite} consultas este mes ({$porcentaje}%). Te quedan " . ($limite - $usadas) . " consultas disponibles.",
                         'warning',
-                        '#',
+                        route('admin.config'),
                         'Actualizar Plan',
                         ['consultas_usadas' => $usadas, 'limite' => $limite, 'porcentaje' => $porcentaje]
                     );
@@ -89,7 +89,7 @@ class SistemaNotificacionesService
                         '🚨 Límite de SOIA-Bot muy cercano',
                         "Has usado {$usadas} de {$limite} consultas este mes ({$porcentaje}%). Solo te quedan " . ($limite - $usadas) . " consultas.",
                         'error',
-                        '#',
+                        route('admin.config'),
                         'Actualizar Plan Ahora',
                         ['consultas_usadas' => $usadas, 'limite' => $limite, 'porcentaje' => $porcentaje]
                     );
@@ -102,7 +102,7 @@ class SistemaNotificacionesService
                         '🚫 Límite de SOIA-Bot alcanzado',
                         "Has alcanzado tu límite de {$limite} consultas al SOIA-Bot este mes. Actualiza tu plan para continuar usando el bot.",
                         'error',
-                        '#',
+                        route('admin.config'),
                         'Actualizar Plan Ahora',
                         ['consultas_usadas' => $usadas, 'limite' => $limite, 'porcentaje' => $porcentaje]
                     );
@@ -123,7 +123,7 @@ class SistemaNotificacionesService
                             '🚫 Límite de SOIA-Bot alcanzado',
                             "Has alcanzado tu límite de {$limite} consultas al SOIA-Bot este mes. Se omitieron operaciones pendientes. Actualiza tu plan para continuar usando el bot.",
                             'error',
-                            '#',
+                            route('admin.config'),
                             'Actualizar Plan Ahora',
                             ['consultas_usadas' => $usadas, 'limite' => $limite, 'porcentaje' => $porcentaje, 'modo' => 'automatico']
                         );

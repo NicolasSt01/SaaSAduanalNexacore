@@ -25,8 +25,9 @@
                 style="min-height: 600px;">
                 <div class="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-700"><i class="fas fa-list-ul text-indigo-500 mr-2"></i>
-                        Operaciones del Día</h2>
+                        Operaciones</h2>
                     <div class="flex items-center gap-3">
+                        <button onclick="toggleFilters()" class="bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition"><i class="fas fa-filter mr-1"></i> Filtros</button>
                         @if($botEnabled && !$botAutomatic)
                             <!-- Botón de consulta manual de modulación -->
                             <button onclick="consultarModulacionManual()" id="btn_consulta_modulacion"
@@ -41,6 +42,63 @@
                         <span
                             class="bg-white border border-gray-300 text-gray-700 text-xs font-bold px-3 py-1 rounded-full shadow-sm"
                             id="ops_count">0 Encontradas</span>
+                    </div>
+                </div>
+
+                <!-- Panel de Filtros -->
+                <div id="filterPanel" class="hidden bg-gray-50 border-b border-gray-200 p-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Cliente</label>
+                            <select id="filter_cliente" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border">
+                                <option value="">Todos</option>
+                                @foreach($opFiltros['clientes'] as $c)
+                                    <option value="{{ $c->id }}">{{ $c->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Referencia</label>
+                            <input type="text" id="filter_referencia" placeholder="Buscar..." class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Aduana</label>
+                            <select id="filter_aduana" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border">
+                                <option value="">Todas</option>
+                                @foreach($opFiltros['aduanas'] as $a)
+                                    <option value="{{ $a->id }}">{{ $a->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Bodega</label>
+                            <select id="filter_bodega" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border">
+                                <option value="">Todas</option>
+                                @foreach($opFiltros['bodegas'] as $b)
+                                    <option value="{{ $b->id }}">{{ $b->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Desde</label>
+                            <input type="date" id="filter_fecha_desde" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Hasta</label>
+                            <input type="date" id="filter_fecha_hasta" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Búsqueda Global</label>
+                        <div class="relative">
+                            <input type="search" id="filter_q" placeholder="Buscar por cliente, bodega, referencia, pedimento, thermo, alpha, factura, producto..." class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs p-2 border pl-9">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1">La búsqueda por texto ignora los filtros de fecha y busca en todo el histórico del tenant.</p>
+                    </div>
+                    <div class="flex items-center gap-3 mt-3">
+                        <button onclick="applyFilters()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition"><i class="fas fa-search mr-1"></i> Buscar</button>
+                        <button onclick="clearFilters()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition"><i class="fas fa-times mr-1"></i> Limpiar</button>
                     </div>
                 </div>
 
@@ -85,6 +143,10 @@
                         <div class="text-center">
                             <span class="block text-2xl font-black text-red-500" id="count_rojas">0</span>
                             <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Rojas</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-2xl font-black text-gray-400" id="count_canceladas">0</span>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Canceladas</span>
                         </div>
                     </div>
                 </div>
@@ -380,9 +442,48 @@
                             <div class="flex-1 text-right">
                                 <input type="file" id="inlineFileInput" class="hidden"
                                     accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" onchange="uploadSingleFile(this)">
-                                <button type="button" onclick="document.getElementById('inlineFileInput').click()"
+                                <button type="button" onclick="openUploadWithType()"
                                     class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded shadow-sm transition text-xs font-bold cursor-pointer">
                                     <i class="fas fa-upload mr-1"></i> Subir Archivo
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Selector de tipo de documento para subida -->
+                        <div id="uploadTypeSelector" class="hidden mb-3 bg-white border border-indigo-200 rounded-xl p-4 shadow-sm">
+                            <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2"> Tipo de Documento (Art. 36-A) </label>
+                            <select id="uploadTipoDocumento" class="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm p-2.5 font-medium">
+                                <optgroup label="Documentos del Art. 36-A (Maestros)">
+                                    <option value="acta">Acta Constitutiva</option>
+                                    <option value="poder">Poder Notarial</option>
+                                    <option value="identificacion">Identificación Oficial</option>
+                                    <option value="rfc">Constancia CSF (RFC)</option>
+                                    <option value="domicilio">Comprobante de Domicilio</option>
+                                </optgroup>
+                                <optgroup label="Documentos por Operación (Art. 36-A)">
+                                    <option value="factura" selected>Factura Comercial</option>
+                                    <option value="encargo">Encargo Conferido</option>
+                                    <option value="transporte">Documentos de Transporte</option>
+                                    <option value="empaque">Lista de Empaque</option>
+                                    <option value="origen">Certificado de Origen</option>
+                                    <option value="rrna">Cumplimiento RRNA's</option>
+                                    <option value="gastos">Gastos Incrementables</option>
+                                    <option value="doda">DODA / PITA</option>
+                                    <option value="cupo">Carta de Cupo</option>
+                                    <option value="val">Certificación de Valor</option>
+                                </optgroup>
+                                <optgroup label="Otros">
+                                    <option value="pedimento_pagado">Pedimento Pagado</option>
+                                    <option value="concepto_adicional">Concepto Adicional</option>
+                                    <option value="otros">Otros</option>
+                                </optgroup>
+                            </select>
+                            <div class="flex gap-2 mt-3">
+                                <button type="button" onclick="confirmUploadWithType()" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition text-xs font-bold cursor-pointer">
+                                    <i class="fas fa-check mr-1"></i> Confirmar y Seleccionar Archivo
+                                </button>
+                                <button type="button" onclick="cancelUploadWithType()" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 text-xs font-bold cursor-pointer transition">
+                                    Cancelar
                                 </button>
                             </div>
                         </div>
@@ -401,7 +502,40 @@
         </div>
     </div>
 
-    <!-- Modal DODA Error -->
+    <!-- Modal Cancelar Operación -->
+    <div id="cancelOpModal" class="fixed inset-0 z-[80] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm" onclick="closeCancelModal()"></div>
+        <div class="flex items-center justify-center min-h-full p-4 text-center">
+            <div class="relative bg-white rounded-xl text-left shadow-2xl transform transition-all w-full max-w-md">
+                <div class="bg-red-600 px-6 py-4 flex justify-between items-center rounded-t-xl">
+                    <h3 class="text-lg leading-6 font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle"></i> Cancelar Operación <span id="cancelOpRef" class="ml-2 bg-red-800 text-red-100 px-2 py-1 rounded text-xs font-mono"></span>
+                    </h3>
+                    <button type="button" class="text-red-200 hover:text-white transition" onclick="closeCancelModal()"><i class="fas fa-times fa-lg"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-sm text-gray-600">Esta acción cambiará el estado de la operación a <span class="font-bold text-red-600">CANCELADA</span>. Las operaciones canceladas no se contabilizan en las métricas operativas.</p>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">Motivo de Cancelación *</label>
+                        <textarea id="cancelMotivo" rows="3" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm p-2.5 border" placeholder="Describe el motivo por el cual se cancela esta operación..." required></textarea>
+                    </div>
+                    <div class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <input type="checkbox" id="cancelDeleteDocs" class="mt-1 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                        <label for="cancelDeleteDocs" class="text-sm text-gray-700">
+                            <span class="font-bold text-yellow-700">Eliminar documentos adjuntos</span><br>
+                            <span class="text-xs text-gray-500">Si marcas esta opción, los documentos subidos a esta operación serán eliminados permanentemente de Cloudflare R2.</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-6 py-4 flex sm:flex-row-reverse gap-3 rounded-b-xl border-t border-gray-200">
+                    <button id="btnSubmitCancel" onclick="submitCancelOp()" class="w-full sm:w-auto inline-flex justify-center rounded-lg border border-transparent bg-red-600 px-6 py-2.5 text-base font-bold text-white shadow-sm hover:bg-red-700 transition">
+                        <i class="fas fa-ban mr-1"></i> Confirmar Cancelación
+                    </button>
+                    <button type="button" onclick="closeCancelModal()" class="w-full sm:w-auto inline-flex justify-center rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-base font-bold text-gray-700 shadow-sm hover:bg-gray-50 transition">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="dodaErrorModal" class="fixed inset-0 z-[80] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog"
         aria-modal="true">
         <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
@@ -445,8 +579,8 @@
     <script>
         let globalExpedientes = {};
         let globalOperaciones = [];
-        let chartInstance = null;
-        let autoRefresh = null;
+        let initialLoadDone = false;
+        const urlOpParam = new URLSearchParams(window.location.search).get('op');
 
         document.addEventListener('DOMContentLoaded', () => {
             initChart();
@@ -474,10 +608,10 @@
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Desaduanamiento Libre (Verde)', 'Reconocimiento (Rojo)'],
+                    labels: ['Desaduanamiento Libre (Verde)', 'Reconocimiento (Rojo)', 'Canceladas'],
                     datasets: [{
-                        data: [0, 0],
-                        backgroundColor: ['#10b981', '#ef4444'],
+                        data: [0, 0, 0],
+                        backgroundColor: ['#10b981', '#ef4444', '#9ca3af'],
                         borderWidth: 0,
                         hoverOffset: 4
                     }]
@@ -506,8 +640,35 @@
                 date.getSeconds().toString().padStart(2, '0');
         }
 
+        function getFilterParams() {
+            const params = new URLSearchParams();
+            const q = document.getElementById('filter_q')?.value?.trim();
+            if (q) params.append('q', q);
+
+            // INC-020: Pasar op en carga inicial para incluirlo sin filtro de fecha
+            if (!initialLoadDone && urlOpParam) {
+                params.append('op', urlOpParam);
+            }
+            const cliente = document.getElementById('filter_cliente')?.value;
+            const referencia = document.getElementById('filter_referencia')?.value?.trim();
+            const aduana = document.getElementById('filter_aduana')?.value;
+            const bodega = document.getElementById('filter_bodega')?.value;
+            const fechaDesde = document.getElementById('filter_fecha_desde')?.value;
+            const fechaHasta = document.getElementById('filter_fecha_hasta')?.value;
+            const estado = document.getElementById('filter_estado')?.value;
+            if (cliente) params.append('cliente_id', cliente);
+            if (referencia) params.append('referencia', referencia);
+            if (aduana) params.append('aduana_id', aduana);
+            if (bodega) params.append('bodega_id', bodega);
+            if (fechaDesde) params.append('fecha_desde', fechaDesde);
+            if (fechaHasta) params.append('fecha_hasta', fechaHasta);
+            if (estado) params.append('estado_filtro', estado);
+            return params;
+        }
+
         function fetchLiveData() {
-            fetch('{{ route("documentador.liveData") }}')
+            const params = getFilterParams();
+            fetch('{{ route("documentador.liveData") }}?' + params.toString())
                 .then(res => res.json())
                 .then(data => {
                     globalExpedientes = data.expedientes;
@@ -516,80 +677,24 @@
                     // Actualizar contadores y gráfica
                     document.getElementById('count_verdes').innerText = data.grafica.verdes;
                     document.getElementById('count_rojas').innerText = data.grafica.rojas;
+                    document.getElementById('count_canceladas').innerText = data.grafica.canceladas || 0;
 
-                    chartInstance.data.datasets[0].data = [data.grafica.verdes, data.grafica.rojas];
+                    chartInstance.data.datasets[0].data = [data.grafica.verdes, data.grafica.rojas, data.grafica.canceladas || 0];
                     chartInstance.update();
 
                     // Actualizar Tabla
                     const tbody = document.getElementById('live_ops_table');
                     document.getElementById('ops_count').innerText = data.operaciones.length + " Encontradas";
 
-                    if (data.operaciones.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-12 text-center text-gray-500 bg-gray-50 border-b border-gray-100"><i class="fas fa-inbox text-4xl mb-3 text-gray-300 block"></i> No tienes operaciones asignadas el día de hoy.</td></tr>`;
-                    } else {
-                        let rows = '';
-                        data.operaciones.forEach(op => {
-                            let dodaBadge = op.doda ? `<span class="bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight"><i class="fas fa-qrcode text-gray-400 mr-1"></i>${op.doda}</span>` : `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs font-semibold"><i class="fas fa-exclamation-triangle"></i> Sin DODA</span>`;
+                    renderOpsTable(data.operaciones);
 
-                            let pedimentoBadge = op.pedimento ? `<span class="bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight"><i class="fas fa-passport text-gray-400 mr-1"></i>${op.pedimento}</span>` : `<span class="text-gray-400 text-xs">-</span>`;
-
-                            let estatusBadge = '';
-                            if (op.modulacion) {
-                                if (op.modulacion === 'DESADUANAMIENTO LIBRE') {
-                                    estatusBadge = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-green-200 mt-1 block w-max mx-auto">${op.modulacion}</span>`;
-                                } else if (op.modulacion === 'ERROR DODA NO COINCIDE') {
-                                    let tooltipInfo = "El número de DODA / Pedimento ingresado no corresponde.";
-                                    if (op.bot_logs && op.bot_logs.length > 0) {
-                                        let lastLog = op.bot_logs[op.bot_logs.length - 1];
-                                        if (lastLog.errores && lastLog.errores.length > 0) {
-                                            tooltipInfo = lastLog.errores.join('<br>');
-                                        }
-                                    }
-                                    let encodedError = encodeURIComponent(tooltipInfo);
-                                    estatusBadge = `<button type="button" onclick="openDodaErrorModal('${encodedError}')" class="bg-red-100 text-red-800 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-red-300 mt-1 block w-max mx-auto shadow-sm hover:bg-red-200 transition"><i class="fas fa-exclamation-circle mr-1"></i>${op.modulacion}</button>`;
-                                } else {
-                                    estatusBadge = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-red-200 mt-1 block w-max mx-auto">${op.modulacion}</span>`;
-                                }
-                            } else if (op.pedimento && op.doda) {
-                                estatusBadge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-yellow-200 mt-1 block w-max mx-auto">EN ESPERA DE MODULACIÓN</span>`;
-                            } else if (op.estado === 'proceso') {
-                                estatusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-blue-200 mt-1 block w-max mx-auto">EN PROCESO</span>`;
-                            } else {
-                                estatusBadge = `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-gray-200 mt-1 block w-max mx-auto">${op.estado.toUpperCase()}</span>`;
-                            }
-
-                            rows += `
-                                <tr class="hover:bg-indigo-50/50 transition group border-b border-gray-100">
-                                    <td class="px-4 py-3">
-                                        <p class="font-bold text-gray-800 font-mono text-sm tracking-tight">${op.referencia}</p>
-                                        <p class="text-xs text-gray-500 truncate max-w-[150px]" title="${op.cliente_nombre}">${op.cliente_nombre}</p>
-                                    </td>
-                                    <td class="px-4 py-3 align-middle">
-                                        <span class="bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight"><i class="fas fa-file-invoice text-gray-400 mr-1"></i>${op.factura}</span>
-                                    </td>
-                                    <td class="px-4 py-3 align-top">
-                                        <div class="flex flex-col gap-1.5 items-start mt-0.5">
-                                            ${dodaBadge}
-                                            ${pedimentoBadge}
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3 text-center align-middle">
-                                        ${estatusBadge}
-                                    </td>
-                                    <td class="px-4 py-3 text-center align-middle">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <button onclick="openModal(${op.id}, '${op.referencia}', '${op.cliente_nombre}', '${op.doda || ''}', ${op.pedimento_id || 'null'}, ${op.cliente_id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 px-2.5 py-1.5 rounded shadow-sm transition transform group-hover:scale-105" title="Asignar DODA/Pedimento">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button onclick="openDetailsModal(${op.id})" class="text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1.5 rounded shadow-sm transition transform group-hover:scale-105" title="Ver Detalles">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                `;
-                        });
-                        tbody.innerHTML = rows;
+                    // INC-020: Auto-abrir detalle de operación desde notificación (?op=)
+                    if (!initialLoadDone && urlOpParam) {
+                        initialLoadDone = true;
+                        const targetOp = globalOperaciones.find(o => o.id == urlOpParam);
+                        if (targetOp) {
+                            setTimeout(() => openDetailsModal(targetOp.id), 500);
+                        }
                     }
 
                     document.getElementById('last_update_time').innerHTML = `<i class="fas fa-sync-alt text-green-500 ${data.operaciones.length > 0 ? 'animate-spin-fast' : ''}"></i> Actualizado: ${formatTime(new Date())}`;
@@ -598,6 +703,83 @@
                     console.error("Live Data Error", err);
                     document.getElementById('last_update_time').innerHTML = `<span class="text-red-500"><i class="fas fa-wifi"></i> Conexión Perdida</span>`;
                 });
+        }
+
+        function renderOpsTable(ops) {
+            const tbody = document.getElementById('live_ops_table');
+            if (!ops || ops.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-12 text-center text-gray-500 bg-gray-50 border-b border-gray-100"><i class="fas fa-inbox text-4xl mb-3 text-gray-300 block"></i> No hay operaciones para mostrar.</td></tr>`;
+                return;
+            }
+            let rows = '';
+            ops.forEach(op => {
+                let isCancelled = op.estado === 'cancelada';
+                let rowClass = isCancelled ? 'bg-red-50/60 opacity-75' : 'hover:bg-indigo-50/50';
+
+                let dodaBadge = op.doda ? `<span class="bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight"><i class="fas fa-qrcode text-gray-400 mr-1"></i>${op.doda}</span>` : `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs font-semibold"><i class="fas fa-exclamation-triangle"></i> Sin DODA</span>`;
+
+                let pedimentoBadge = op.pedimento ? `<span class="bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight"><i class="fas fa-passport text-gray-400 mr-1"></i>${op.pedimento}</span>` : `<span class="text-gray-400 text-xs">-</span>`;
+
+                let fechaCruce = op.fecha_cruce ? `<span class="text-[10px] text-gray-400 block mt-0.5"><i class="fas fa-calendar-alt mr-0.5"></i>${op.fecha_cruce}</span>` : '';
+
+                let estatusBadge = '';
+                if (isCancelled) {
+                    estatusBadge = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-red-300 mt-1 block w-max mx-auto"><i class="fas fa-ban mr-1"></i>CANCELADA</span>`;
+                } else if (op.modulacion) {
+                    if (op.modulacion === 'DESADUANAMIENTO LIBRE') {
+                        estatusBadge = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-green-200 mt-1 block w-max mx-auto">${op.modulacion}</span>`;
+                    } else if (op.modulacion === 'ERROR DODA NO COINCIDE') {
+                        let tooltipInfo = "El número de DODA / Pedimento ingresado no corresponde.";
+                        if (op.bot_logs && op.bot_logs.length > 0) {
+                            let lastLog = op.bot_logs[op.bot_logs.length - 1];
+                            if (lastLog.errores && lastLog.errores.length > 0) {
+                                tooltipInfo = lastLog.errores.join('<br>');
+                            }
+                        }
+                        let encodedError = encodeURIComponent(tooltipInfo);
+                        estatusBadge = `<button type="button" onclick="openDodaErrorModal('${encodedError}')" class="bg-red-100 text-red-800 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-red-300 mt-1 block w-max mx-auto shadow-sm hover:bg-red-200 transition"><i class="fas fa-exclamation-circle mr-1"></i>${op.modulacion}</button>`;
+                    } else {
+                        estatusBadge = `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-red-200 mt-1 block w-max mx-auto">${op.modulacion}</span>`;
+                    }
+                } else if (op.pedimento && op.doda) {
+                    estatusBadge = `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-yellow-200 mt-1 block w-max mx-auto">EN ESPERA DE MODULACIÓN</span>`;
+                } else if (op.estado === 'proceso') {
+                    estatusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-blue-200 mt-1 block w-max mx-auto">EN PROCESO</span>`;
+                } else {
+                    estatusBadge = `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-gray-200 mt-1 block w-max mx-auto">${op.estado.toUpperCase()}</span>`;
+                }
+
+                rows += `
+                    <tr class="${rowClass} transition group border-b border-gray-100">
+                        <td class="px-4 py-3">
+                            <p class="font-bold text-gray-800 font-mono text-sm tracking-tight ${isCancelled ? 'line-through text-red-400' : ''}">${op.referencia}</p>
+                            <p class="text-xs text-gray-500 truncate max-w-[150px]" title="${op.cliente_nombre}">${op.cliente_nombre}</p>
+                            ${fechaCruce}
+                        </td>
+                        <td class="px-4 py-3 align-middle">
+                            <span class="bg-gray-100 border border-gray-300 text-gray-800 px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight"><i class="fas fa-file-invoice text-gray-400 mr-1"></i>${op.factura}</span>
+                            ${isCancelled ? `<p class="text-[10px] text-red-500 mt-1 italic" title="${op.motivo_cancelacion || ''}">${op.motivo_cancelacion ? op.motivo_cancelacion.substring(0, 40) + (op.motivo_cancelacion.length > 40 ? '...' : '') : ''}</p>` : ''}
+                        </td>
+                        <td class="px-4 py-3 align-top">
+                            <div class="flex flex-col gap-1.5 items-start mt-0.5">
+                                ${dodaBadge}
+                                ${pedimentoBadge}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-center align-middle">
+                            ${estatusBadge}
+                        </td>
+                        <td class="px-4 py-3 text-center align-middle">
+                            <div class="flex items-center justify-center gap-2">
+                                ${isCancelled ? `<button disabled class="text-gray-300 bg-gray-100 border border-gray-200 px-2.5 py-1.5 rounded shadow-sm cursor-not-allowed" title="Operación cancelada"><i class="fas fa-edit"></i></button>` : `<button onclick="openModal(${op.id}, '${op.referencia}', '${op.cliente_nombre}', '${op.doda || ''}', ${op.pedimento_id || 'null'}, ${op.cliente_id})" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 px-2.5 py-1.5 rounded shadow-sm transition transform group-hover:scale-105" title="Asignar DODA/Pedimento"><i class="fas fa-edit"></i></button>`}
+                                ${isCancelled ? `<button onclick="openCancelDetailsModal(${op.id})" class="text-red-500 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded shadow-sm transition" title="Ver motivo de cancelación"><i class="fas fa-ban"></i></button>` : ''}
+                                <button onclick="openDetailsModal(${op.id})" class="text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1.5 rounded shadow-sm transition transform group-hover:scale-105" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                                ${!isCancelled ? `<button onclick="openCancelModal(${op.id}, '${op.referencia}')" class="text-red-400 bg-white hover:bg-red-50 hover:text-red-600 border border-gray-200 hover:border-red-300 px-2.5 py-1.5 rounded shadow-sm transition" title="Cancelar Operación"><i class="fas fa-times-circle"></i></button>` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+            tbody.innerHTML = rows;
         }
 
         // Funciones del Modal
@@ -725,7 +907,7 @@
                 filesToUpload.push({
                     file: file,
                     uid: Math.random().toString(36).substring(7),
-                    type: 'otros' // default
+                    type: 'factura'
                 });
             });
             renderFileList();
@@ -748,6 +930,32 @@
                 return;
             }
 
+            const tipoOpts = `
+                <optgroup label="Documentos del Art. 36-A (Maestros)">
+                    <option value="acta">Acta Constitutiva</option>
+                    <option value="poder">Poder Notarial</option>
+                    <option value="identificacion">Identificación Oficial</option>
+                    <option value="rfc">Constancia CSF (RFC)</option>
+                    <option value="domicilio">Comprobante de Domicilio</option>
+                </optgroup>
+                <optgroup label="Documentos por Operación (Art. 36-A)">
+                    <option value="factura">Factura Comercial</option>
+                    <option value="encargo">Encargo Conferido</option>
+                    <option value="transporte">Documentos de Transporte</option>
+                    <option value="empaque">Lista de Empaque</option>
+                    <option value="origen">Certificado de Origen</option>
+                    <option value="rrna">Cumplimiento RRNA's</option>
+                    <option value="gastos">Gastos Incrementables</option>
+                    <option value="doda">DODA / PITA</option>
+                    <option value="cupo">Carta de Cupo</option>
+                    <option value="val">Certificación de Valor</option>
+                </optgroup>
+                <optgroup label="Otros">
+                    <option value="pedimento_pagado">Pedimento Pagado</option>
+                    <option value="concepto_adicional">Concepto Adicional</option>
+                    <option value="otros">Otros</option>
+                </optgroup>`;
+
             let html = '';
             filesToUpload.forEach(item => {
                 let size = (item.file.size / 1024 / 1024).toFixed(2);
@@ -761,22 +969,24 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
-                                <select onchange="updateFileType('${item.uid}', this)" class="w-full sm:w-40 px-2 py-1.5 text-xs font-bold text-gray-700 bg-gray-50 border border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="Factura" ${item.type === 'Factura' ? 'selected' : ''}>Factura</option>
-                                    <option value="DODA" ${item.type === 'DODA' ? 'selected' : ''}>DODA</option>
-                                    <option value="Guía" ${item.type === 'Guía' ? 'selected' : ''}>Guía</option>
-                                    <option value="Permiso" ${item.type === 'Permiso' ? 'selected' : ''}>Permiso</option>
-                                    <option value="Pedimento" ${item.type === 'Pedimento' ? 'selected' : ''}>Pedimento</option>
-                                    <option value="otros" ${item.type === 'otros' ? 'selected' : ''}>Otros</option>
+                                <select onchange="updateFileType('${item.uid}', this)" class="w-full sm:w-44 px-2 py-1.5 text-xs font-bold text-gray-700 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                    ${tipoOpts}
                                 </select>
                                 <button type="button" onclick="removeFile('${item.uid}')" class="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 transition">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
             });
             list.innerHTML = html;
+
+            // Set selected values after rendering
+            const selects = list.querySelectorAll('select');
+            filesToUpload.forEach((item, i) => {
+                if (selects[i]) {
+                    selects[i].value = item.type;
+                }
+            });
         }
 
         function submitCreate(e) {
@@ -852,7 +1062,22 @@
             document.getElementById('det_pedimento').innerText = op.pedimento || 'S/A';
             document.getElementById('det_doda').innerText = op.doda || 'S/A';
 
-            renderModalFiles(op.documentos);
+            // Cargar documentos bajo demanda vía API dedicada
+            fetchModalDocuments(opId);
+        }
+
+        function fetchModalDocuments(opId) {
+            const list = document.getElementById('details_files_list');
+            list.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-3xl mb-3 block text-indigo-400"></i><p class="text-sm">Cargando archivos...</p></div>';
+
+            fetch(`{{ url('documentador/api/operaciones') }}/${opId}/documentos`)
+                .then(res => res.json())
+                .then(data => {
+                    renderModalFiles(data.documentos);
+                })
+                .catch(() => {
+                    list.innerHTML = '<div class="text-center py-10 text-red-400"><p class="text-sm">Error al cargar archivos.</p></div>';
+                });
         }
 
         function closeDetailsModal() {
@@ -870,15 +1095,28 @@
                 return;
             }
 
+            const tipoLabels = {
+                'acta': 'Acta Constitutiva', 'poder': 'Poder Notarial',
+                'identificacion': 'Identificación Oficial', 'rfc': 'Constancia CSF (RFC)',
+                'domicilio': 'Comprobante de Domicilio', 'factura': 'Factura Comercial',
+                'encargo': 'Encargo Conferido', 'transporte': 'Documentos de Transporte',
+                'empaque': 'Lista de Empaque', 'origen': 'Certificado de Origen',
+                'rrna': "Cumplimiento RRNA's", 'gastos': 'Gastos Incrementables',
+                'doda': 'DODA / PITA', 'cupo': 'Carta de Cupo', 'val': 'Certificación de Valor',
+                'pedimento_pagado': 'Pedimento Pagado', 'concepto_adicional': 'Concepto Adicional',
+                'otros': 'Otros',
+            };
+
             let html = '';
             docs.forEach(doc => {
+                const tipoLabel = tipoLabels[doc.tipo] || doc.tipo || 'Sin tipo';
                 html += `
                     <div class="flex flex-col xl:flex-row items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm gap-3 transition hover:shadow-md group">
                         <div class="flex items-center gap-3 overflow-hidden w-full xl:w-auto">
                             <div class="p-2.5 bg-indigo-50 text-indigo-500 rounded text-xl shrink-0"><i class="fas fa-file-alt"></i></div>
                             <div class="truncate">
                                 <p class="text-sm font-bold text-gray-700 truncate" title="${doc.nombre}">${doc.nombre}</p>
-                                <span class="text-[10px] uppercase font-bold tracking-wider text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">${doc.tipo}</span>
+                                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">${tipoLabel}</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 w-full xl:w-auto mt-2 xl:mt-0 justify-end">
@@ -902,12 +1140,12 @@
             if (!currentDetailsOpId) return;
 
             const file = input.files[0];
+            const tipoDocumento = document.getElementById('uploadTipoDocumento')?.value || 'otros';
             const formData = new FormData();
             formData.append('operacion_id', currentDetailsOpId);
             formData.append('archivos[0]', file);
-            formData.append('tipos_documento[0]', 'otros');
+            formData.append('tipos_documento[0]', tipoDocumento);
 
-            // Show uploading state
             input.disabled = true;
 
             fetch('{{ route("documentos_operacion.store2") }}', {
@@ -918,7 +1156,8 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        fetchLiveDataForModal();
+                        fetchModalDocuments(currentDetailsOpId);
+                        fetchLiveData();
                     } else {
                         alert("Error al subir: " + (data.message || ''));
                     }
@@ -930,7 +1169,21 @@
                 .finally(() => {
                     input.disabled = false;
                     input.value = '';
+                    document.getElementById('uploadTypeSelector').classList.add('hidden');
                 });
+        }
+
+        function openUploadWithType() {
+            const selector = document.getElementById('uploadTypeSelector');
+            selector.classList.remove('hidden');
+        }
+
+        function cancelUploadWithType() {
+            document.getElementById('uploadTypeSelector').classList.add('hidden');
+        }
+
+        function confirmUploadWithType() {
+            document.getElementById('inlineFileInput').click();
         }
 
         function deleteDocumentModal(docId) {
@@ -943,23 +1196,11 @@
                     'Accept': 'application/json'
                 }
             })
-                .then(res => {
-                    fetchLiveDataForModal();
+                .then(() => {
+                    fetchModalDocuments(currentDetailsOpId);
+                    fetchLiveData();
                 })
                 .catch(err => alert("Error de conexión."));
-        }
-
-        function fetchLiveDataForModal() {
-            return fetch('{{ route("documentador.liveData") }}')
-                .then(res => res.json())
-                .then(data => {
-                    globalOperaciones = data.operaciones;
-                    const op = globalOperaciones.find(o => o.id === currentDetailsOpId);
-                    if (op) {
-                        renderModalFiles(op.documentos);
-                    }
-                    fetchLiveData(); // refresh rest of the page UI as well in background
-                });
         }
 
         // ==========================================
@@ -1121,6 +1362,99 @@
             if (modal) {
                 modal.remove();
             }
+        }
+
+        // ==========================================
+        // CANCELAR OPERACIÓN
+        // ==========================================
+        let cancelOpId = null;
+
+        function openCancelModal(opId, referencia) {
+            cancelOpId = opId;
+            const modal = document.getElementById('cancelOpModal');
+            document.getElementById('cancelOpRef').innerText = referencia;
+            document.getElementById('cancelMotivo').value = '';
+            document.getElementById('cancelDeleteDocs').checked = false;
+            modal.classList.remove('hidden');
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancelOpModal').classList.add('hidden');
+            cancelOpId = null;
+        }
+
+        function submitCancelOp() {
+            if (!cancelOpId) return;
+            const motivo = document.getElementById('cancelMotivo').value.trim();
+            if (!motivo) {
+                alert('Debes ingresar un motivo de cancelación.');
+                return;
+            }
+            const deleteDocs = document.getElementById('cancelDeleteDocs').checked;
+            const btn = document.getElementById('btnSubmitCancel');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Cancelando...';
+
+            fetch(`/documentador/cancelar/${cancelOpId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    motivo_cancelacion: motivo,
+                    eliminar_documentos: deleteDocs,
+                }),
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    closeCancelModal();
+                    fetchLiveData();
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo cancelar la operación.'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión al cancelar la operación.');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-ban mr-1"></i> Confirmar Cancelación';
+            });
+        }
+
+        function openCancelDetailsModal(opId) {
+            const op = globalOperaciones.find(o => o.id === opId);
+            if (!op) return;
+            const motivo = op.motivo_cancelacion || 'Sin motivo registrado';
+            alert('Motivo de cancelación:\n\n' + motivo);
+        }
+
+        // ==========================================
+        // FILTROS DE BÚSQUEDA
+        // ==========================================
+        function applyFilters() {
+            fetchLiveData();
+        }
+
+        function clearFilters() {
+            if (document.getElementById('filter_q')) document.getElementById('filter_q').value = '';
+            if (document.getElementById('filter_cliente')) document.getElementById('filter_cliente').value = '';
+            if (document.getElementById('filter_referencia')) document.getElementById('filter_referencia').value = '';
+            if (document.getElementById('filter_aduana')) document.getElementById('filter_aduana').value = '';
+            if (document.getElementById('filter_bodega')) document.getElementById('filter_bodega').value = '';
+            if (document.getElementById('filter_fecha_desde')) document.getElementById('filter_fecha_desde').value = '';
+            if (document.getElementById('filter_fecha_hasta')) document.getElementById('filter_fecha_hasta').value = '';
+            if (document.getElementById('filter_estado')) document.getElementById('filter_estado').value = '';
+            fetchLiveData();
+        }
+
+        function toggleFilters() {
+            const panel = document.getElementById('filterPanel');
+            panel.classList.toggle('hidden');
         }
     </script>
 

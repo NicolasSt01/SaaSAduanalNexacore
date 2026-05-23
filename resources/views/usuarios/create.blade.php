@@ -31,32 +31,16 @@
         <p class="text-sm text-gray-500 mt-2 font-medium">Registra a un nuevo integrante en tu agencia. Verifica tu límite de usuarios.</p>
     </div>
 
-    @if ($errors->any())
-        <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-500"></i>
-                </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-bold text-red-800">Se encontraron errores:</h3>
-                    <ul class="mt-1 text-sm text-red-700 list-disc list-inside">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            </div>
-        </div>
-    @endif
-    
+    @include('partials.alerts')
+
     @if (session('error'))
-        <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
+        <div class="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-sm">
             <div class="flex">
                 <div class="flex-shrink-0">
-                    <i class="fas fa-ban text-red-500"></i>
+                    <i class="fas fa-ban text-rose-500"></i>
                 </div>
                 <div class="ml-3">
-                    <p class="text-sm text-red-700 font-bold">{{ session('error') }}</p>
+                    <p class="text-sm text-rose-700 font-bold">{{ session('error') }}</p>
                 </div>
             </div>
         </div>
@@ -68,36 +52,45 @@
                 <i class="fas fa-user-plus text-indigo-500"></i> Formulario de Registro
             </h3>
         </div>
-        
+
         <div class="p-6 sm:p-8">
             <form action="{{ route('usuarios.store') }}" method="POST" class="space-y-6">
                 @csrf
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="name" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Nombre Completo <span class="text-red-500">*</span></label>
-                        <input type="text" id="name" name="name" required value="{{ old('name') }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white" placeholder="Ej. Juan Pérez">
+                        <label for="name" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Nombre Completo <span class="text-rose-500">*</span></label>
+                        <input type="text" id="name" name="name" required value="{{ old('name') }}" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Ej. Juan Pérez">
+                        @error('name')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
-                        <label for="email" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Correo Electrónico <span class="text-red-500">*</span></label>
-                        <input type="email" id="email" name="email" required value="{{ old('email') }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white" placeholder="Ej. juan@agencia.com">
+                        <label for="email" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Correo Electrónico <span class="text-rose-500">*</span></label>
+                        <input type="email" id="email" name="email" required value="{{ old('email') }}" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Ej. juan@agencia.com">
+                        @error('email')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
-                        <label for="role" class="block text-sm font-bold text-gray-700 mb-1">Rol Operativo <span class="text-red-500">*</span></label>
-                        <select id="role" name="role" required class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white">
+                        <label for="role" class="block text-sm font-bold text-gray-700 mb-1">Rol Operativo <span class="text-rose-500">*</span></label>
+                        <select id="role" name="role" required class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50">
                             <option value="">-- Selecciona un rol --</option>
                             <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Administrador (Control total de la agencia)</option>
                             <option value="documentador" {{ old('role') === 'documentador' ? 'selected' : '' }}>Documentador (Captura Operaciones)</option>
                             <option value="trafico" {{ old('role') === 'trafico' ? 'selected' : '' }}>Tráfico / Operativo</option>
                             <option value="cliente" {{ old('role') === 'cliente' ? 'selected' : '' }}>Cliente (Solo vista)</option>
                         </select>
+                        @error('role')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div id="cliente-select-container" style="display: none;">
-                        <label for="cliente_id" class="block text-sm font-bold text-gray-700 mb-1">Empresa del Cliente <span class="text-red-500">*</span></label>
-                        <select id="cliente_id" name="cliente_id" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white">
+                        <label for="cliente_id" class="block text-sm font-bold text-gray-700 mb-1">Empresa del Cliente <span class="text-rose-500">*</span></label>
+                        <select id="cliente_id" name="cliente_id" class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50">
                             <option value="">-- Selecciona a qué cliente pertenece --</option>
                             @foreach($clientes as $cliente)
                                 <option value="{{ $cliente->id }}" {{ old('cliente_id') == $cliente->id ? 'selected' : '' }}>
@@ -108,13 +101,16 @@
                     </div>
 
                     <div>
-                        <label for="password" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Contraseña <span class="text-red-500">*</span></label>
-                        <input type="password" id="password" name="password" required class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white" placeholder="Mínimo 6 caracteres">
+                        <label for="password" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Contraseña <span class="text-rose-500">*</span></label>
+                        <input type="password" id="password" name="password" required class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Mínimo 6 caracteres">
+                        @error('password')
+                            <p class="mt-1 text-xs text-rose-600 font-bold">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
-                        <label for="password_confirmation" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Confirmar Contraseña <span class="text-red-500">*</span></label>
-                        <input type="password" id="password_confirmation" name="password_confirmation" required class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-3 border bg-white" placeholder="Escribe tu contraseña nuevamente">
+                        <label for="password_confirmation" class="block text-sm font-bold text-gray-700 mb-1 lg:max-w-md">Confirmar Contraseña <span class="text-rose-500">*</span></label>
+                        <input type="password" id="password_confirmation" name="password_confirmation" required class="w-full rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 p-3 border shadow-sm bg-gray-50/50" placeholder="Escribe tu contraseña nuevamente">
                     </div>
                 </div>
 
@@ -134,10 +130,10 @@
                 </div>
 
                 <div class="pt-6 border-t border-gray-100 flex items-center justify-end gap-3 mt-8">
-                    <a href="{{ route('usuarios.index') }}" class="inline-flex justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                    <a href="{{ route('usuarios.index') }}" class="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                         Cancelar
                     </a>
-                    <button type="submit" class="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                    <button type="submit" class="inline-flex justify-center rounded-xl border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                         Registrar Usuario
                     </button>
                 </div>
@@ -146,7 +142,6 @@
     </div>
 </div>
 
-<script src="https://cdn.tailwindcss.com"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const roleSelect = document.getElementById('role');
@@ -170,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function () {
             permisosContainer.style.display = 'block';
         } else {
             permisosContainer.style.display = 'none';
-            // Uncheck all checkboxes if hidden
             const checkboxes = permisosContainer.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(cb => cb.checked = false);
         }

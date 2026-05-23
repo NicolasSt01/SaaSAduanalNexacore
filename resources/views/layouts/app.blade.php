@@ -338,8 +338,8 @@
                             class="hidden sm:-my-px sm:ml-8 sm:flex sm:space-x-4 overflow-x-auto no-scrollbar items-center">
                             @auth
                                 @if(in_array(auth()->user()->role, ['admin']) && in_array(auth()->user()->name, ['Admin CrossPoint', 'Ricardo Rodriguez', 'Alejandro']))
-                                    <a href="{{ route('reportes.gerencia') }}"
-                                        class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->is('gerencia*') ? 'border-indigo-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-bold transition">Gerencia</a>
+                                    <a href="{{ route('admin.config') }}"
+                                        class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->is('admin/config*') ? 'border-indigo-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-bold transition">Configuración</a>
                                 @endif
 
                                 @if(in_array(strtolower(auth()->user()->role), ['admin', 'documentador']))
@@ -505,8 +505,8 @@
                 <div class="pt-2 pb-3 space-y-1 px-2">
                     @auth
                         @if(in_array(auth()->user()->role, ['admin']) && in_array(auth()->user()->name, ['Admin CrossPoint', 'Ricardo Rodriguez', 'Alejandro']))
-                            <a href="{{ route('reportes.gerencia') }}"
-                                class="block px-3 py-2 rounded-md text-base font-bold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50">Gerencia</a>
+                            <a href="{{ route('admin.config') }}"
+                                class="block px-3 py-2 rounded-md text-base font-bold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50">Configuración</a>
                         @endif
                         @if(in_array(strtolower(auth()->user()->role), ['admin', 'documentador']))
                             <a href="{{ route('documentador.dashboard') }}"
@@ -727,7 +727,7 @@
 
             // Función para marcar una notificación como leída
             function marcarComoLeida(notificacionId, element) {
-                fetch(`/notificaciones/${notificacionId}/leer`, {
+                fetch(`/notificaciones/${notificacionId}/marcar-leida`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

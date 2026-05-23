@@ -6,7 +6,8 @@ use App\Models\Documento;
 use App\Models\Expediente;
 use App\Models\Operacion;
 use App\Models\User;
-use App\Services\NotificacionService; // 🔔 AGREGAR
+use App\Services\DocumentoStorageService;
+use App\Services\NotificacionService;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -14,19 +15,15 @@ use Illuminate\Support\Facades\DB;
 
 class DocumentadorController extends Controller
 {
-    protected $notificacionService; // 🔔 AGREGAR
+    protected NotificacionService $notificacionService;
+    protected DocumentoStorageService $storageService;
 
-    // 🔔 AGREGAR CONSTRUCTOR
-    public function __construct(NotificacionService $notificacionService)
+    public function __construct(NotificacionService $notificacionService, DocumentoStorageService $storageService)
     {
         $this->middleware("auth");
         $this->notificacionService = $notificacionService;
+        $this->storageService = $storageService;
     }
-    //
-    /*public function OLD__construct_OLD()
-     {
-     $this->middleware("auth");
-     }*/
 
     public function dashboardDocumentador()
     {
@@ -40,84 +37,6 @@ class DocumentadorController extends Controller
 
         return view('documentador.dashboard', compact('botMode', 'botEnabled', 'botAutomatic'));
     }
-    public function index_original()
-    {
-        $user = Auth::user();
-        $userId = auth()->id();
-        $hoy = now()->format('Y-m-d');
-
-        // Obtener operaciones asignadas al usuario
-        $operaciones = Operacion::with(['cliente'])
-            ->where('usuario_cierre_id', $userId)
-            ->where(function ($query) use ($hoy) {
-                $query->whereDate('fecha_registro', $hoy)
-                    ->orWhereIn('estado', ['pendiente', 'proceso']);
-            })
-            ->orderByRaw("
-            CASE 
-                WHEN prioridad = 'urgente' THEN 1
-                WHEN prioridad = 'media' THEN 2  
-                WHEN prioridad = 'regular' THEN 3
-                ELSE 4
-            END
-        ")
-            ->orderBy('fecha_registro', 'desc')
-            ->get();
-
-        // Estadísticas
-        $stats = $this->getDocumentadorStats($userId);
-
-        return view('documentador.dashboard', compact('operaciones', 'stats'));
-    }
-
-    private function getDocumentadorStats($userId)
-    {
-        $hoy = now()->format('Y-m-d');
-        $ayer = now()->subDay()->format('Y-m-d');
-
-        $totalHoy = Operacion::where('usuario_cierre_id', $userId)
-            ->whereDate('fecha_registro', $hoy)
-            ->count();
-
-        $completadosHoy = Operacion::where('usuario_cierre_id', $userId)
-            ->whereDate('fecha_registro', $hoy)
-            ->where('estado', 'completado')
-            ->count();
-
-        $pendientes = Operacion::where('usuario_cierre_id', $userId)
-            ->whereIn('estado', ['pendiente', 'proceso'])
-            ->count();
-
-        $efectividad = $totalHoy > 0 ? round(($completadosHoy / $totalHoy) * 100) : 0;
-
-        return [
-            'total_hoy' => $totalHoy,
-            'completados_hoy' => $completadosHoy,
-            'pendientes' => $pendientes,
-            'efectividad' => $efectividad,
-            'ranking' => $this->getDocumentadorRanking($userId)
-        ];
-    }
-
-    private function getDocumentadorRanking($userId)
-    {
-        // Lógica para calcular ranking (puedes ajustar según tus necesidades)
-        $inicioSemana = now()->startOfWeek()->format('Y-m-d');
-        $finSemana = now()->endOfWeek()->format('Y-m-d');
-
-        $completadosSemana = Operacion::where('usuario_cierre_id', $userId)
-            ->whereBetween('fecha_registro', [$inicioSemana, $finSemana])
-            ->where('estado', 'completado')
-            ->count();
-
-        // Esto es un ejemplo, deberías ajustar la lógica de ranking real
-        return [
-            'posicion' => 3,
-            'total' => $completadosSemana,
-            'variacion' => '+5'
-        ];
-    }
-
     public function trabajarOperacion($id)
     {
         $operacion = Operacion::findOrFail($id);
@@ -141,7 +60,7 @@ class DocumentadorController extends Controller
         }
 
         $request->validate([
-            'estado' => 'required|in:pendiente,proceso,completado',
+            'estado' => 'required|in:pendiente,proceso,completado,cancelada',
             'comentarios' => 'nullable|string'
         ]);
 
@@ -155,6 +74,64 @@ class DocumentadorController extends Controller
 
         return redirect()->route('documentador.dashboard')
             ->with('success', 'Estado actualizado correctamente');
+    }
+
+    public function cancelarOperacion(Request $request, $id)
+    {
+        try {
+            $operacion = Operacion::findOrFail($id);
+
+            if ($operacion->estado === 'cancelada') {
+                return response()->json(['success' => false, 'message' => 'La operación ya está cancelada.'], 400);
+            }
+
+            if (!in_array(auth()->user()->role, ['admin', 'super_admin', 'Documentador'])) {
+                return response()->json(['success' => false, 'message' => 'No tienes permisos para cancelar operaciones.'], 403);
+            }
+
+            $validated = $request->validate([
+                'motivo_cancelacion' => 'required|string|max:1000',
+                'eliminar_documentos' => 'nullable|boolean',
+            ]);
+
+            $operacion->estado = 'cancelada';
+            $operacion->motivo_cancelacion = $validated['motivo_cancelacion'];
+            $operacion->fecha_cancelacion = now();
+            $operacion->usuario_cancelacion_id = auth()->id();
+            $operacion->save();
+
+            if (!empty($validated['eliminar_documentos'])) {
+                $documentos = Documento::where('operacion_id', $operacion->id)->get();
+                foreach ($documentos as $doc) {
+                    try {
+                        if ($doc->en_r2) {
+                            $this->storageService->delete($doc->ruta);
+                        } elseif (\Illuminate\Support\Facades\Storage::disk('local')->exists($doc->ruta)) {
+                            \Illuminate\Support\Facades\Storage::disk('local')->delete($doc->ruta);
+                        }
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('Error al eliminar documento al cancelar operación', [
+                            'doc_id' => $doc->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                    $doc->delete();
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Operación cancelada correctamente.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error al cancelar operación', [
+                'operacion_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     // Agrega estos métodos al OperacionController
@@ -292,39 +269,62 @@ class DocumentadorController extends Controller
 
     public function trabajarOperacion2($id)
     {
-        // Cargar la exportación con relaciones opcionales
         $operacion = Operacion::with([
-            'cliente', // Siempre debe existir
-            'importador', // Siempre debe existir
-            'aduana', // Siempre debe existir
-            'bodega', // Puede ser null
-            'patente', // Puede ser null - se asigna después
-            'expediente' // Puede ser null - se asigna después
+            'cliente',
+            'importador',
+            'aduana',
+            'bodega',
+            'patente',
+            'expediente'
         ])->findOrFail($id);
 
-        // Verificar que pertenece al usuario logueado
         if ($operacion->usuario_cierre_id != auth()->id()) {
             abort(403, 'No tienes permisos para trabajar en esta exportación');
         }
 
-        // Cambiar estado a "proceso" si está pendiente
         if ($operacion->estado == 'pendiente') {
             $operacion->estado = 'proceso';
             $operacion->save();
         }
 
-        // Obtener solo expedientes activos del cliente de la exportación
-        $expedientes = Expediente::whereIn('estado', ['En proceso', 'Abierto'])
+        $expedientes = Expediente::with('patente')
+            ->whereIn('estado', ['En proceso', 'Abierto'])
             ->where('cliente_id', $operacion->cliente_id)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Obtener documentos asociados a esta exportación
         $documentos = Documento::where('operacion_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
 
         return view('documentador.trabajar', compact('operacion', 'expedientes', 'documentos'));
+    }
+
+    /**
+     * API: Retorna solo los documentos de una operación (para modal details).
+     */
+    public function getDocumentosOperacion($id)
+    {
+        $operacion = Operacion::findOrFail($id);
+
+        if ($operacion->tenant_id !== auth()->user()->tenant_id) {
+            abort(403);
+        }
+
+        $documentos = Documento::where('operacion_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id,
+                    'nombre' => $doc->nombre,
+                    'tipo' => $doc->tipo_documento,
+                    'preview_url' => route('documentos.preview', $doc->id),
+                    'download_url' => route('documentos.download', $doc->id),
+                ];
+            });
+
+        return response()->json(['documentos' => $documentos]);
     }
 
     public function completarOperacion_old(Request $request, $id)
@@ -618,12 +618,13 @@ class DocumentadorController extends Controller
 
         $efectividad = $totalHoy > 0 ? number_format(($completadosHoy / $totalHoy) * 100, 2) : 0;
 
-        $stats = [
+$stats = [
             'total_hoy' => $totalHoy,
             'completados_hoy' => $completadosHoy,
             'pendientes' => $pendientes,
             'efectividad' => $efectividad,
-            'ranking' => $this->getWeeklyRanking($user) // Obtiene la posición del usuario en el ranking
+            'ranking_posicion' => $posicionUser,
+            'canceladas_hoy' => $canceladasHoy,
         ];
 
         // --- 3. Obtener el Ranking Semanal ---
@@ -644,136 +645,6 @@ class DocumentadorController extends Controller
                 ];
             });
         return view('documentador.dashboard', compact('stats', 'operaciones', 'rankingSemanal'));
-    }
-    public function index_original2(Request $request)
-    {
-        $user = Auth::user();
-
-        // --- 1. Obtener Operaciones Asignadas con paginación y filtro ---
-        $query = Operacion::where('usuario_cierre_id', $user->id)
-            ->whereDate('fecha_registro', now()->today())
-            ->orderBy('prioridad', 'desc');
-
-        // Aplicar filtro para operaciones terminadas
-        /*if (!$request->has('show_completed')) {
-         $query->where('estado', '!=', 'completado');
-         }*/
-        // --- 2. Filtrar según switch "mostrar terminadas" ---
-        // Si NO está activo, solo pendiente o en proceso
-        if (!$request->boolean('show_completed')) {
-            $query->whereIn('estado', ['pendiente', 'proceso']);
-        }
-        // Si está activo, no filtramos estado (entrarán también completadas)
-
-        $operaciones = $query->paginate(12); // Paginación de 12 operaciones por página
-
-        // --- 2. Calcular Estadísticas del Día ---
-        // Se realiza una consulta separada para obtener el total de trámites del día sin paginación
-        $operacionesHoy = Operacion::where('usuario_cierre_id', $user->id)
-            ->whereDate('fecha_registro', now()->today())
-            ->get();
-
-        $totalHoy = $operacionesHoy->count();
-        $completadosHoy = $operacionesHoy->where('estado', 'terminado')->count();
-        $pendientes = $totalHoy - $completadosHoy;
-
-        $efectividad = $totalHoy > 0 ? number_format(($completadosHoy / $totalHoy) * 100, 2) : 0;
-
-        $stats = [
-            'total_hoy' => $totalHoy,
-            'completados_hoy' => $completadosHoy,
-            'pendientes' => $pendientes,
-            'efectividad' => $efectividad,
-            'ranking' => $this->getWeeklyRanking($user) // Obtiene la posición del usuario en el ranking
-        ];
-
-        // --- 3. Obtener el Ranking Semanal ---
-        $rankingSemanal = User::where('role', 'documentador')
-            ->withCount([
-                'operaciones' => function ($query) {
-                    $query->whereBetween('fecha_registro', [now()->startOfWeek(), now()->endOfWeek()])
-                        ->where('estado', 'completado');
-                }
-            ])
-            ->orderByDesc('operaciones_count')
-            ->get()
-            ->map(function ($rankItem) use ($user) {
-                return (object) [
-                    'name' => $rankItem->name,
-                    'total_tramites' => $rankItem->operaciones_count,
-                    'is_current_user' => $rankItem->id === Auth::id()
-                ];
-            });
-
-        return view('documentador.dashboard', compact('stats', 'operaciones', 'rankingSemanal'));
-    }
-    public function index_OLD(Request $request)
-    {
-        $user = Auth::user();
-
-        // -------- 1. Operaciones asignadas con paginación y filtro --------
-        $query = Operacion::where('usuario_cierre_id', $user->id)
-            ->whereDate('fecha_registro', now()->today())
-            ->orderBy('prioridad', 'desc');
-
-        // Si NO está activo "mostrar terminadas", filtramos solo pendientes o en proceso
-        if (!$request->boolean('show_completed')) {
-            $query->whereIn('estado', ['pendiente', 'proceso']);
-        }
-
-        $operaciones = $query->paginate(12);
-
-        // -------- 2. Estadísticas del día --------
-        $operacionesHoy = Operacion::where('usuario_cierre_id', $user->id)
-            ->whereDate('fecha_registro', now()->today())
-            ->get();
-
-        $totalHoy = $operacionesHoy->count();
-        $completadosHoy = $operacionesHoy->where('estado', 'terminado')->count();
-        $pendientes = $totalHoy - $completadosHoy;
-        $efectividad = $totalHoy > 0 ? number_format(($completadosHoy / $totalHoy) * 100, 2) : 0;
-
-        // -------- 3. Ranking semanal --------
-        $inicioSemana = Carbon::now()->startOfWeek();
-        $finSemana = Carbon::now()->endOfWeek();
-        $estadoCompletado = 'terminado'; // tu estado correcto en DB
-
-        $rankingSemanal = User::where('role', 'documentador')
-            ->where('active', true)
-            ->withCount([
-                'operaciones as completadas_semana' => function ($query) use ($estadoCompletado, $inicioSemana, $finSemana) {
-                    $query->whereBetween('fecha_registro', [$inicioSemana, $finSemana])
-                        ->where('estado', $estadoCompletado);
-                }
-            ])
-            ->orderByDesc('completadas_semana')
-            ->get()
-            ->map(function ($rankItem) use ($user) {
-                return (object) [
-                    'name' => $rankItem->name,
-                    'total_tramites' => $rankItem->completadas_semana,
-                    'is_current_user' => $rankItem->id === $user->id
-                ];
-            });
-
-        // Posición del usuario actual en el ranking
-        $posicionUser = $rankingSemanal->search(fn($r) => $r->is_current_user);
-        $posicionUser = $posicionUser !== false ? $posicionUser + 1 : null;
-
-        // 🔹 NUEVO: Contar trámites disponibles para asignar
-        $tramitesDisponibles = Operacion::where('fecha_registro', today())
-            ->whereNull('usuario_cierre_id')
-            ->count();
-
-        $stats = [
-            'total_hoy' => $totalHoy,
-            'completados_hoy' => $completadosHoy,
-            'pendientes' => $pendientes,
-            'efectividad' => $efectividad,
-            'ranking_posicion' => $posicionUser
-        ];
-
-        return view('documentador.dashboard', compact('stats', 'operaciones', 'rankingSemanal', 'tramitesDisponibles'));
     }
 
     // Método para tomar un trámite específico
@@ -931,28 +802,105 @@ class DocumentadorController extends Controller
         $user = Auth::user();
         $hoy = now()->today();
 
-        // Obtener todas las operaciones del Tenant para hoy o futuras/sin fecha
-        $operaciones = Operacion::where(function ($q) use ($hoy) {
-            $q->whereDate('fecha_cruce_estimada', '>=', $hoy)
-                ->orWhereNull('fecha_cruce_estimada');
-        })
-            ->whereIn('estado', ['capturada', 'pendiente', 'proceso', 'terminado']) // Ajustar si quieres ver terminadas también
-            ->with(['cliente', 'documentos', 'importador', 'aduana', 'bodega', 'expediente'])
-            ->orderByRaw("
-                CASE 
-                    WHEN DATE(fecha_cruce_estimada) = CURDATE() THEN 0 
-                    WHEN fecha_cruce_estimada IS NULL THEN 1
-                    ELSE 2 
-                END
-            ")
+        $query = Operacion::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->with(['cliente', 'importador', 'aduana', 'bodega', 'expediente']);
+
+        // Si NO hay búsqueda global, aplicar filtro de fecha por defecto (hoy en adelante)
+        if (!$request->filled('q')) {
+            $query->where(function ($q) use ($hoy) {
+                $q->whereDate('fecha_cruce_estimada', '>=', $hoy)
+                    ->orWhereNull('fecha_cruce_estimada');
+            });
+        }
+
+        // INC-020: Incluir operación específica por ID sin importar filtro de fecha (para notificaciones)
+        if ($request->filled('op')) {
+            $opId = (int) $request->input('op');
+            // Reemplazar el where de fecha: incluir hoy EN ADELANTE o la operación específica
+            if (!$request->filled('q')) {
+                // Reconstruir el query sin el filtro de fecha excluyente
+                $query = Operacion::query()
+                    ->where('tenant_id', $user->tenant_id)
+                    ->with(['cliente', 'importador', 'aduana', 'bodega', 'expediente'])
+                    ->where(function ($q) use ($hoy, $opId) {
+                        $q->whereDate('fecha_cruce_estimada', '>=', $hoy)
+                            ->orWhereNull('fecha_cruce_estimada')
+                            ->orWhere('id', $opId);
+                    });
+            }
+        }
+
+        $query->whereIn('estado', ['capturada', 'pendiente', 'proceso', 'terminado', 'cancelada']);
+
+        // Búsqueda global por texto (ignora fechas)
+        if ($request->filled('q')) {
+            $search = $request->input('q');
+            $query->where(function ($sq) use ($search) {
+                $sq->where('referencia', 'like', '%' . $search . '%')
+                    ->orWhere('num_factura', 'like', '%' . $search . '%')
+                    ->orWhere('nombre_producto', 'like', '%' . $search . '%')
+                    ->orWhere('codigo_alpha', 'like', '%' . $search . '%')
+                    ->orWhere('num_thermo', 'like', '%' . $search . '%')
+                    ->orWhere('num_doda', 'like', '%' . $search . '%')
+                    ->orWhereHas('cliente', function ($q) use ($search) {
+                        $q->where('nombre', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('bodega', function ($q) use ($search) {
+                        $q->where('nombre', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('aduana', function ($q) use ($search) {
+                        $q->where('nombre', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('importador', function ($q) use ($search) {
+                        $q->where('nombre', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('expediente', function ($q) use ($search) {
+                        $q->where('numero_pedimento', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        // Filtros dinámicos
+        if ($request->filled('cliente_id')) {
+            $query->where('cliente_id', $request->cliente_id);
+        }
+        if ($request->filled('referencia')) {
+            $query->where('referencia', 'like', '%' . $request->referencia . '%');
+        }
+        if ($request->filled('aduana_id')) {
+            $query->where('aduana_id', $request->aduana_id);
+        }
+        if ($request->filled('bodega_id')) {
+            $query->where('bodega_id', $request->bodega_id);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_cruce_estimada', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_cruce_estimada', '<=', $request->fecha_hasta);
+        }
+        if ($request->filled('estado_filtro')) {
+            $query->where('estado', $request->estado_filtro);
+        }
+
+        $operaciones = $query->orderByRaw("
+            CASE 
+                WHEN estado = 'cancelada' THEN 99
+                WHEN DATE(fecha_cruce_estimada) = CURDATE() THEN 0 
+                WHEN fecha_cruce_estimada IS NULL THEN 1
+                ELSE 2 
+            END
+        ")
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // KPIs de modulaciones para el chart (De todas las operaciones del tenant hoy)
-        $verdes = $operaciones->where('modulacion', 'DESADUANAMIENTO LIBRE')->count();
-        $rojas = $operaciones->whereIn('modulacion', ['RECONOCIMIENTO ADUANERO', 'RECONOCIMIENTO ADUANERO CONCLUIDO'])->count();
+        // Métricas: excluir canceladas
+        $operacionesActivas = $operaciones->where('estado', '!=', 'cancelada');
+        $verdes = $operacionesActivas->where('modulacion', 'DESADUANAMIENTO LIBRE')->count();
+        $rojas = $operacionesActivas->whereIn('modulacion', ['RECONOCIMIENTO ADUANERO', 'RECONOCIMIENTO ADUANERO CONCLUIDO'])->count();
+        $canceladasCount = $operaciones->where('estado', 'cancelada')->count();
 
-        // Clientes únicos de estas operaciones para buscar sus expedientes
         $clienteIds = $operaciones->pluck('cliente_id')->unique();
 
         $expedientes = Expediente::whereIn('cliente_id', $clienteIds)
@@ -961,7 +909,6 @@ class DocumentadorController extends Controller
             ->get()
             ->groupBy('cliente_id');
 
-        // Formatear las operaciones para el JSON
         $opsData = $operaciones->map(function ($op) {
             return [
                 'id' => $op->id,
@@ -974,25 +921,16 @@ class DocumentadorController extends Controller
                 'pedimento_id' => $op->expediente_id,
                 'modulacion' => $op->modulacion,
                 'bot_logs' => is_string($op->bot_logs_json) ? json_decode($op->bot_logs_json, true) : $op->bot_logs_json,
-                'cliente_nombre' => $op->cliente ? $op->cliente->nombre ?? $op->cliente->nombre_empresa : 'N/A',
+                'cliente_nombre' => $op->cliente ? ($op->cliente->nombre ?? $op->cliente->nombre_empresa) : 'N/A',
                 'producto' => $op->nombre_producto,
                 'aduana' => $op->aduana ? $op->aduana->nombre : 'N/A',
                 'bodega' => $op->bodega ? $op->bodega->nombre : 'N/A',
                 'importador' => $op->importador ? $op->importador->nombre : 'N/A',
                 'thermo' => $op->num_thermo,
                 'alpha' => $op->codigo_alpha,
-                'documentos' => $op->documentos->map(
-                    function ($doc) {
-                        return [
-                            'id' => $doc->id,
-                            'nombre' => $doc->nombre,
-                            'tipo' => $doc->tipo_documento,
-                            'preview_url' => route('documentos.preview', $doc->id),
-                            'download_url' => route('documentos.download', $doc->id),
-                            'delete_url' => route('documentos.destroy', $doc->id)
-                        ];
-                    }
-                )
+                'fecha_cruce' => $op->fecha_cruce_estimada ? $op->fecha_cruce_estimada->format('Y-m-d') : null,
+                'motivo_cancelacion' => $op->motivo_cancelacion,
+                'documentos_count' => $op->documentos()->count(),
             ];
         });
 
@@ -1001,7 +939,8 @@ class DocumentadorController extends Controller
             'expedientes' => $expedientes,
             'grafica' => [
                 'verdes' => $verdes,
-                'rojas' => $rojas
+                'rojas' => $rojas,
+                'canceladas' => $canceladasCount,
             ]
         ]);
     }
@@ -1095,14 +1034,27 @@ class DocumentadorController extends Controller
 
             if ($request->hasFile('archivos')) {
                 $tipos = $request->input('tipos_archivos', []);
+                $tenantId = auth()->user()->tenant_id;
                 foreach ($request->file('archivos') as $index => $archivo) {
-                    $path = $archivo->store('documentos');
                     $tipoDoc = $tipos[$index] ?? 'otros';
+                    $nombreOriginal = pathinfo($archivo->getClientOriginalName(), PATHINFO_FILENAME);
+
+                    $meta = $this->storageService->upload(
+                        $archivo,
+                        $tenantId,
+                        $operacion->id,
+                        $tipoDoc,
+                        $nombreOriginal
+                    );
 
                     Documento::create([
+                        'tenant_id' => $tenantId,
                         'operacion_id' => $operacion->id,
-                        'nombre' => $archivo->getClientOriginalName(),
-                        'ruta' => $path,
+                        'nombre' => $nombreOriginal,
+                        'ruta' => $meta['path'],
+                        'url_archivo' => $meta['url'],
+                        'peso' => $meta['peso'],
+                        'extension' => $meta['extension'],
                         'tipo_documento' => $tipoDoc,
                     ]);
                 }
@@ -1178,41 +1130,66 @@ class DocumentadorController extends Controller
 
         $operaciones = $query->get();
 
-        // Separar trámites para la vista
         $tramitesPropios = $operaciones->filter(fn($exp) => $exp->usuario_cierre_id == $user->id);
         $tramitesDisponibles = $operaciones->filter(fn($exp) => $exp->usuario_cierre_id == null);
         $tramitesOtros = $operaciones->filter(fn($exp) => $exp->usuario_cierre_id != null && $exp->usuario_cierre_id != $user->id);
 
-        // 🚛 Agregar información de consolidados a cada exportación
+        // 🚛 Precalcular consolidados en UNA sola query (elimina N+1)
+        $thermoAlphas = $operaciones
+            ->filter(fn($op) => $op->num_thermo && $op->codigo_alpha)
+            ->map(fn($op) => $op->num_thermo . '|' . $op->codigo_alpha)
+            ->unique()
+            ->values();
+
+        $consolidados = collect();
+        if ($thermoAlphas->isNotEmpty()) {
+            $grupos = Operacion::where(function ($q) use ($thermoAlphas) {
+                foreach ($thermoAlphas as $ta) {
+                    [$thermo, $alpha] = explode('|', $ta);
+                    $q->orWhere(function ($sub) use ($thermo, $alpha) {
+                        $sub->where('num_thermo', $thermo)
+                            ->where('codigo_alpha', $alpha);
+                    });
+                }
+            })
+                ->whereDate('fecha_cruce_estimada', '>=', now()->today())
+                ->select('id', 'num_thermo', 'codigo_alpha')
+                ->orderBy('id', 'asc')
+                ->get()
+                ->groupBy(fn($op) => $op->num_thermo . '|' . $op->codigo_alpha);
+
+            $consolidados = $grupos->map(fn($group) => [
+                'count' => $group->count(),
+                'first_id' => $group->first()->id,
+            ]);
+        }
+
         foreach ($operaciones as $operacion) {
             if ($operacion->num_thermo && $operacion->codigo_alpha) {
-                // Contar cuántas operaciones consolidadas hay en total (incluyendo esta)
-                $operacion->consolidado_count = Operacion::where('num_thermo', $operacion->num_thermo)
-                    ->where('codigo_alpha', $operacion->codigo_alpha)
-                    ->whereDate('fecha_cruce_estimada', '>=', now()->today())
-                    ->count();
-
-                // Identificar si es la primera del grupo (para mostrar el borde superior)
-                $operacion->consolidado_first = Operacion::where('num_thermo', $operacion->num_thermo)
-                    ->where('codigo_alpha', $operacion->codigo_alpha)
-                    ->whereDate('fecha_cruce_estimada', '>=', now()->today())
-                    ->orderBy('id', 'asc')
-                    ->value('id') == $operacion->id;
+                $key = $operacion->num_thermo . '|' . $operacion->codigo_alpha;
+                $operacion->consolidado_count = $consolidados[$key]['count'] ?? 1;
+                $operacion->consolidado_first = ($consolidados[$key]['first_id'] ?? $operacion->id) == $operacion->id;
             } else {
                 $operacion->consolidado_count = 1;
                 $operacion->consolidado_first = true;
             }
         }
 
-        // -------- 2. Estadísticas del día (solo del usuario) --------
+        // -------- 2. Estadísticas del día (solo del usuario, sin canceladas) --------
         $operacionesHoy = Operacion::where('usuario_cierre_id', $user->id)
             ->whereDate('fecha_cruce_estimada', now()->today())
+            ->where('estado', '!=', 'cancelada')
             ->get();
 
         $totalHoy = $operacionesHoy->count();
         $completadosHoy = $operacionesHoy->where('estado', 'terminado')->count();
         $pendientes = $totalHoy - $completadosHoy;
         $efectividad = $totalHoy > 0 ? number_format(($completadosHoy / $totalHoy) * 100, 2) : 0;
+
+        // KPI: Operaciones canceladas del día
+        $canceladasHoy = Operacion::whereDate('fecha_cancelacion', now()->today())
+            ->where('estado', 'cancelada')
+            ->count();
 
         // -------- 3. Ranking semanal --------
         $inicioSemana = Carbon::now()->startOfWeek();
@@ -1225,6 +1202,10 @@ class DocumentadorController extends Controller
                 'operaciones as completadas_semana' => function ($query) use ($estadoCompletado, $inicioSemana, $finSemana) {
                     $query->whereBetween('fecha_cruce_estimada', [$inicioSemana, $finSemana])
                         ->where('estado', $estadoCompletado);
+                },
+                'operaciones as canceladas_semana' => function ($query) use ($inicioSemana, $finSemana) {
+                    $query->whereBetween('fecha_cancelacion', [$inicioSemana, $finSemana])
+                        ->where('estado', 'cancelada');
                 }
             ])
             ->orderByDesc('completadas_semana')

@@ -181,9 +181,23 @@ class Expediente extends Model
             return true;
         }
 
-        // 2. Si es un documento del Expediente Maestro
+        // 2. Si es un documento del Expediente Maestro (Cliente)
+        // INC-019: Los documentos maestros se consultan del CLIENTE, no del expediente
         if (array_key_exists($type, self::MAESTRO_DOCS)) {
-            return $this->documentos()->where('tipo_documento', $type)->exists();
+            if (!$this->cliente_id) return false;
+
+            // Usar colección eager-loaded si está disponible (evita N+1)
+            if ($this->relationLoaded('cliente') && $this->cliente->relationLoaded('documentosMaestros')) {
+                return $this->cliente->documentosMaestros
+                    ->where('tipo_documento', $type)
+                    ->isNotEmpty();
+            }
+
+            // Fallback: query directa a BD
+            return Documento::where('cliente_id', $this->cliente_id)
+                ->where('tipo_documento', $type)
+                ->whereNull('pedimento_id')
+                ->exists();
         }
 
         // 3. Si es un documento por Operación, validamos que TODAS las operaciones lo tengan

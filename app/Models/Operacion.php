@@ -36,6 +36,9 @@ class Operacion extends Model
         'prioridad',
         'estado',
         'observaciones',
+        'motivo_cancelacion',
+        'fecha_cancelacion',
+        'usuario_cancelacion_id',
         'bot_logs_json',
         'ultimo_scraping_at',
         'modulacion_detectada_at',
@@ -45,6 +48,7 @@ class Operacion extends Model
         'fecha_registro' => 'date',
         'fecha_cruce_estimada' => 'date',
         'fecha_modulacion' => 'datetime',
+        'fecha_cancelacion' => 'datetime',
         'bot_logs_json' => 'array',
         'ultimo_scraping_at' => 'datetime',
         'modulacion_detectada_at' => 'datetime',
@@ -88,7 +92,12 @@ class Operacion extends Model
 
     public function usuarioCierre()
     {
-        return $this->belongsTo(User::class , 'usuario_cierre_id');
+        return $this->belongsTo(User::class, 'usuario_cierre_id');
+    }
+
+    public function usuarioCancelacion()
+    {
+        return $this->belongsTo(User::class, 'usuario_cancelacion_id');
     }
 
     public function documentos()

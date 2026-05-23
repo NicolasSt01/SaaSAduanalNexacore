@@ -3,10 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Documento;
+use App\Models\Expediente;
+use App\Services\DocumentoStorageService;
+use App\Services\SistemaNotificacionesService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ClienteController extends Controller
 {
+    protected DocumentoStorageService $storageService;
+    protected SistemaNotificacionesService $sistemaNotificaciones;
+
+    public function __construct(
+        DocumentoStorageService $storageService,
+        SistemaNotificacionesService $sistemaNotificaciones
+    ) {
+        $this->middleware('auth');
+        $this->storageService = $storageService;
+        $this->sistemaNotificaciones = $sistemaNotificaciones;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -84,9 +100,9 @@ class ClienteController extends Controller
      */
     public function show(string $id)
     {
-        //
-        $cliente = Cliente::findOrFail($id);
-        return view('clientes.show', compact('cliente'));
+        $cliente = Cliente::with('documentosMaestros')->findOrFail($id);
+        $maestroDocs = Expediente::MAESTRO_DOCS;
+        return view('clientes.show', compact('cliente', 'maestroDocs'));
     }
 
     /**
@@ -133,5 +149,107 @@ class ClienteController extends Controller
     public function admincliente()
     {
         return view('clientes.dashboard');
+    }
+
+    /**
+     * Subir documento maestro Art. 36-A al perfil del cliente.
+     */
+    public function subirDocumento(Request $request, Cliente $cliente)
+    {
+        try {
+            $request->validate([
+                'archivo' => 'required|file|max:51200',
+                'tipo_documento' => 'required|string|in:' . implode(',', array_keys(Expediente::MAESTRO_DOCS)),
+            ]);
+
+            $file = $request->file('archivo');
+            $tenantId = auth()->user()->tenant_id;
+            $tipoDocumento = $request->tipo_documento;
+            $nombreArchivo = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+            // Eliminar documento existente del mismo tipo para este cliente
+            $existente = Documento::where('cliente_id', $cliente->id)
+                ->where('tipo_documento', $tipoDocumento)
+                ->whereNull('pedimento_id')
+                ->first();
+            if ($existente) {
+                if ($existente->en_r2) {
+                    $this->storageService->delete($existente->ruta);
+                }
+                $existente->delete();
+            }
+
+            $meta = $this->storageService->upload(
+                $file,
+                $tenantId,
+                null,
+                $tipoDocumento,
+                $nombreArchivo,
+                $cliente->id
+            );
+
+            // Calcular fecha de vencimiento para CSF
+            $fechaVencimiento = null;
+            if ($tipoDocumento === 'rfc') {
+                $fechaVencimiento = now()->addMonthNoOverflow()->startOfMonth()->addDays(4);
+            }
+
+            Documento::create([
+                'tenant_id' => $tenantId,
+                'cliente_id' => $cliente->id,
+                'nombre' => $nombreArchivo,
+                'ruta' => $meta['path'],
+                'url_archivo' => $meta['url'],
+                'peso' => $meta['peso'],
+                'extension' => $meta['extension'],
+                'tipo_documento' => $tipoDocumento,
+                'fecha_vencimiento' => $fechaVencimiento,
+            ]);
+
+            return back()->with('success', Expediente::MAESTRO_DOCS[$tipoDocumento] . ' subido correctamente.');
+        } catch (\Throwable $e) {
+            Log::error('Error al subir documento de cliente', [
+                'cliente_id' => $cliente->id,
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id(),
+            ]);
+            return back()->with('error', 'Error al subir documento: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Eliminar documento maestro del cliente.
+     */
+    public function eliminarDocumento(Request $request, Cliente $cliente, Documento $documento)
+    {
+        try {
+            if ($documento->cliente_id !== $cliente->id) {
+                abort(403);
+            }
+
+            if ($documento->en_r2) {
+                $this->storageService->delete($documento->ruta);
+            }
+
+            $tipoDocumento = $documento->tipo_documento;
+            $documento->delete();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Documento eliminado correctamente.']);
+            }
+
+            return back()->with('success', Expediente::MAESTRO_DOCS[$tipoDocumento] . ' eliminado correctamente.');
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar documento de cliente', [
+                'documento_id' => $documento->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            }
+
+            return back()->with('error', 'Error al eliminar documento: ' . $e->getMessage());
+        }
     }
 }

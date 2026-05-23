@@ -46,7 +46,7 @@ class OperacionController extends Controller
         }
 
         $hoy = Carbon::today();
-        $query = Operacion::with(["cliente", "importador", "bodega", "usuarioRegistro", "usuarioCierre"]);
+        $query = Operacion::where('estado', '!=', 'cancelada')->with(["cliente", "importador", "bodega", "usuarioRegistro", "usuarioCierre"]);
 
         if ($request->filled("fecha_inicio")) {
             $query->whereDate("fecha_cruce_estimada", ">=", $request->fecha_inicio);
@@ -94,7 +94,9 @@ class OperacionController extends Controller
 
         $operaciones = $query->paginate(50)->withQueryString();
 
-        $statsHoy = Operacion::whereDate("fecha_cruce_estimada", $hoy)->get();
+        $statsHoy = Operacion::whereDate("fecha_cruce_estimada", $hoy)
+            ->where('estado', '!=', 'cancelada')
+            ->get();
         $totalHoy = $statsHoy->count();
         $pendientesHoy = $statsHoy->where("estado", "pendiente")->count();
         $procesoHoy = $statsHoy->where("estado", "proceso")->count();
@@ -102,6 +104,7 @@ class OperacionController extends Controller
 
         $topRegistradores = Operacion::select("usuario_registro_id", DB::raw("count(*) as total"))
             ->whereDate("fecha_cruce_estimada", $hoy)
+            ->where('estado', '!=', 'cancelada')
             ->groupBy("usuario_registro_id")
             ->with(["usuarioRegistro" => fn($q) => $q->select("id", "name")])
             ->orderByDesc("total")
@@ -110,6 +113,7 @@ class OperacionController extends Controller
         $topCerradores = Operacion::select("usuario_cierre_id", DB::raw("count(*) as total"))
             ->whereDate("fecha_cruce_estimada", $hoy)
             ->whereNotNull("usuario_cierre_id")
+            ->where('estado', '!=', 'cancelada')
             ->groupBy("usuario_cierre_id")
             ->with(["usuarioCierre" => fn($q) => $q->select("id", "name")])
             ->orderByDesc("total")
@@ -848,9 +852,9 @@ class OperacionController extends Controller
 
         //$hoy = now()->toDateString();
 
-        //$query = Operacion::with(['cliente', 'aduana', 'expediente'])
+        //$query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente'])
         //    ->whereDate('fecha_registro', $hoy);
-        $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos']) // 🔹 cargamos documentos
+        $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos']) // 🔹 cargamos documentos
             //->whereDate('fecha_registro', $hoy);
             ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
             ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
@@ -909,7 +913,7 @@ class OperacionController extends Controller
 
 
         // 🔹 Conteo para gráficos
-        $modulacionCounts = Operacion::select(
+        $modulacionCounts = Operacion::where('estado', '!=', 'cancelada')->select(
             DB::raw("
             CASE 
                 WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 'verde'
@@ -992,7 +996,7 @@ class OperacionController extends Controller
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1058,7 +1062,7 @@ class OperacionController extends Controller
     // ============================================================
     // GRÁFICOS DE MODULACIÓN
     // ============================================================
-    $modulacionCounts = Operacion::select(
+    $modulacionCounts = Operacion::where('estado', '!=', 'cancelada')->select(
         DB::raw("
             CASE 
                 WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 'verde'
@@ -1134,7 +1138,7 @@ class OperacionController extends Controller
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1207,7 +1211,7 @@ class OperacionController extends Controller
     // ============================================================
     // GRÁFICOS DE MODULACIÓN
     // ============================================================
-    $modulacionCounts = Operacion::select(
+    $modulacionCounts = Operacion::where('estado', '!=', 'cancelada')->select(
         DB::raw("
             CASE 
                 WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 'verde'
@@ -1283,7 +1287,7 @@ class OperacionController extends Controller
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1353,7 +1357,7 @@ class OperacionController extends Controller
     // ============================================================
     // GRÁFICOS DE MODULACIÓN
     // ============================================================
-    $modulacionCounts = Operacion::select(
+    $modulacionCounts = Operacion::where('estado', '!=', 'cancelada')->select(
         DB::raw("
             CASE 
                 WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 'verde'
@@ -1430,7 +1434,7 @@ class OperacionController extends Controller
             $fecha_registroHasta = now()->toDateString();
         }
 
-        $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
+        $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador'])
             ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
             ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1511,7 +1515,7 @@ class OperacionController extends Controller
         $rojo = $camionesModuladosRojo;
 
         // Gráficos de modulación (mantener para tendencias si es necesario)
-        $modulacionCounts = Operacion::select(
+        $modulacionCounts = Operacion::where('estado', '!=', 'cancelada')->select(
             DB::raw("
             CASE 
                 WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 'verde'
@@ -1587,7 +1591,7 @@ class OperacionController extends Controller
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1695,7 +1699,7 @@ public function dashboardTrafico(Request $request)
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1805,7 +1809,7 @@ public function dashboardTrafico(Request $request)
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -1837,7 +1841,7 @@ public function dashboardTrafico(Request $request)
     ];
 
     // Gráficos de modulación
-    $modulacionCounts = Operacion::select(
+    $modulacionCounts = Operacion::where('estado', '!=', 'cancelada')->select(
         DB::raw("
         CASE 
             WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 'verde'
@@ -1946,7 +1950,7 @@ public function dashboardTraficoAjax_antigravityFail(Request $request)
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -2116,7 +2120,7 @@ public function dashboardTraficoAjax(Request $request)
         $fecha_registroHasta = now()->toDateString();
     }
 
-    $query = Operacion::with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
+    $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente.documentos', 'bodega', 'importador', 'conceptosAdicionales.operacion'])
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
         ->whereDate('fecha_registro', '<=', $fecha_registroHasta);
 
@@ -2306,7 +2310,7 @@ public function modalDetalle_antesdeconceptoadicional($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde', now()->toDateString());
         $fecha_registroHasta = request('fecha_registro_hasta', now()->toDateString());
 
-        $registros = Operacion::with(['cliente', 'aduana', 'expediente', 'bodega', 'documentos', 'conceptosAdicionales'])
+        $registros = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente', 'bodega', 'documentos', 'conceptosAdicionales'])
         ->where('num_thermo', $thermo)
         ->where('codigo_alpha', $alpha)
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
@@ -2354,7 +2358,7 @@ public function modalDetalle($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde') ?: now()->toDateString();
         $fecha_registroHasta = request('fecha_registro_hasta') ?: now()->toDateString();
 
-        $query = Operacion::with(['cliente', 'aduana', 'expediente', 'bodega', 'documentos', 'conceptosAdicionales.operacion'])
+        $query = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'aduana', 'expediente', 'bodega', 'documentos', 'conceptosAdicionales.operacion'])
             ->where('num_thermo', $thermo)
             ->where('codigo_alpha', $alpha);
 
@@ -2433,7 +2437,7 @@ public function modalModulacion_old($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde', now()->toDateString());
         $fecha_registroHasta = request('fecha_registro_hasta', now()->toDateString());
 
-    $registros = Operacion::with('cliente')
+    $registros = Operacion::where('estado', '!=', 'cancelada')->with('cliente')
         ->where('num_thermo', $thermo)
         ->where('codigo_alpha', $alpha)
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
@@ -2466,7 +2470,7 @@ public function modalModulacion_old2($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde', now()->toDateString());
         $fecha_registroHasta = request('fecha_registro_hasta', now()->toDateString());
 
-    $registros = Operacion::with('cliente')
+    $registros = Operacion::where('estado', '!=', 'cancelada')->with('cliente')
         ->where('num_thermo', $thermo)
         ->where('codigo_alpha', $alpha)
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
@@ -2499,7 +2503,7 @@ public function modalModulacion($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde', now()->toDateString());
         $fecha_registroHasta = request('fecha_registro_hasta', now()->toDateString());
 
-    $registros = Operacion::with('cliente')
+    $registros = Operacion::where('estado', '!=', 'cancelada')->with('cliente')
         ->where('num_thermo', $thermo)
         ->where('codigo_alpha', $alpha)
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
@@ -2532,7 +2536,7 @@ public function printModulacion($thermo, $alpha)
     $fecha_registroDesde = request('fecha_registro_desde', now()->toDateString());
     $fecha_registroHasta = request('fecha_registro_hasta', now()->toDateString());
 
-    $registros = Operacion::with(['cliente', 'expediente', 'patente'])
+    $registros = Operacion::where('estado', '!=', 'cancelada')->with(['cliente', 'expediente', 'patente'])
         ->where('num_thermo', $thermo)
         ->where('codigo_alpha', $alpha)
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
@@ -2563,7 +2567,7 @@ public function modalConceptos_nofuncionaconceptoadicional($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde', now()->toDateString());
         $fecha_registroHasta = request('fecha_registro_hasta', now()->toDateString());
 
-    $registros = Operacion::with('cliente')
+    $registros = Operacion::where('estado', '!=', 'cancelada')->with('cliente')
         ->where('num_thermo', $thermo)
         ->where('codigo_alpha', $alpha)
         ->whereDate('fecha_registro', '>=', $fecha_registroDesde)
@@ -2589,7 +2593,7 @@ public function modalConceptos($thermo, $alpha)
         $fecha_registroDesde = request('fecha_registro_desde') ?: now()->toDateString();
         $fecha_registroHasta = request('fecha_registro_hasta') ?: now()->toDateString();
 
-        $query = Operacion::with('cliente')
+        $query = Operacion::where('estado', '!=', 'cancelada')->with('cliente')
             ->where('num_thermo', $thermo)
             ->where('codigo_alpha', $alpha);
 
@@ -2714,6 +2718,7 @@ public function modalConceptos($thermo, $alpha)
         // Obtener operaciones asignadas al usuario
         $operaciones = Operacion::with(['cliente'])
             ->where('usuario_cierre_id', $userId)
+            ->where('estado', '!=', 'cancelada')
             ->where(function ($query) use ($hoy) {
                 $query->whereDate('fecha_registro', $hoy)
                     ->orWhereIn('estado', ['pendiente', 'proceso']);
@@ -2742,6 +2747,7 @@ public function modalConceptos($thermo, $alpha)
 
         $totalHoy = Operacion::where('usuario_cierre_id', $userId)
             ->whereDate('fecha_registro', $hoy)
+            ->where('estado', '!=', 'cancelada')
             ->count();
 
         $completadosHoy = Operacion::where('usuario_cierre_id', $userId)
@@ -2751,6 +2757,7 @@ public function modalConceptos($thermo, $alpha)
 
         $pendientes = Operacion::where('usuario_cierre_id', $userId)
             ->whereIn('estado', ['pendiente', 'proceso'])
+            ->where('estado', '!=', 'cancelada')
             ->count();
 
         $efectividad = $totalHoy > 0 ? round(($completadosHoy / $totalHoy) * 100) : 0;
@@ -2773,6 +2780,7 @@ public function modalConceptos($thermo, $alpha)
         $completadosSemana = Operacion::where('usuario_cierre_id', $userId)
             ->whereBetween('fecha_registro', [$inicioSemana, $finSemana])
             ->where('estado', 'completado')
+            ->where('estado', '!=', 'cancelada')
             ->count();
 
         // Esto es un ejemplo, deberías ajustar la lógica de ranking real
@@ -2886,6 +2894,7 @@ public function modalConceptos($thermo, $alpha)
     public function modulaciones()
     {
         $operaciones = Operacion::with('cliente')
+            ->where('estado', '!=', 'cancelada')
             ->select('id', 'cliente_id', 'modulacion', 'estado', 'prioridad', 'num_factura', 'nombre_producto')
             ->get();
 
@@ -2899,7 +2908,9 @@ public function modalConceptos($thermo, $alpha)
         ]);
 
         // Buscar la exportación por el número DODA
-        $operacion = Operacion::where('num_doda', $request->petition_integration_number)->first();
+        $operacion = Operacion::where('num_doda', $request->petition_integration_number)
+            ->where('estado', '!=', 'cancelada')
+            ->first();
 
         if (!$operacion) {
             return response()->json(['error' => 'Exportación no encontrada'], 404);
@@ -2967,6 +2978,7 @@ public function modalConceptos($thermo, $alpha)
         try {
             // 🔹 Obtenemos todos los registros que necesitan actualización
             $operaciones = Operacion::whereNotNull('num_doda')
+                ->where('estado', '!=', 'cancelada')
                 ->where(function ($query) {
                     $query->whereNull('modulacion')
                         ->orWhere('modulacion', 'RECONOCIMIENTO ADUANERO')
@@ -3023,7 +3035,9 @@ public function modalConceptos($thermo, $alpha)
                     }
 
                     // 🔹 Actualizamos la exportación correspondiente
-                    $operacion = Operacion::where('num_doda', $doda)->first();
+                    $operacion = Operacion::where('num_doda', $doda)
+                        ->where('estado', '!=', 'cancelada')
+                        ->first();
 
                     if ($operacion) {
                         //$operacion->estado = $status_code; // O el campo que uses para el estatus
@@ -3102,7 +3116,9 @@ public function modalConceptos($thermo, $alpha)
                 continue;
             }
 
-            $operacion = Operacion::where('num_doda', $doda)->first();
+            $operacion = Operacion::where('num_doda', $doda)
+                        ->where('estado', '!=', 'cancelada')
+                        ->first();
             if ($operacion) {
                 $operacion->modulacion = $status_txt;
                 $operacion->save();
@@ -3162,7 +3178,9 @@ public function check()
                     preg_match_all('/\*\*\*([A-Z ]{21,33})\*\*\*/', $html, $matches);
                     $status_txt = last($matches[1]) ?? 'DODA no presentado al Mecanismo de Selección Automatizado';
 
-                    $operacion = Operacion::where('num_doda', $doda)->first();
+                    $operacion = Operacion::where('num_doda', $doda)
+                        ->where('estado', '!=', 'cancelada')
+                        ->first();
                     if ($operacion) {
                         $operacion->modulacion = $status_txt;
                         $operacion->save();

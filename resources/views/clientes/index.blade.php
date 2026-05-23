@@ -81,9 +81,9 @@
                     </span>
                 </div>
                 <div class="flex items-start text-sm">
-                    <i class="fas fa-user-tie text-gray-400 mt-1 w-5 text-center"></i>
+                    <i class="fas fa-map-marker-alt text-gray-400 mt-1 w-5 text-center"></i>
                     <span class="ml-2 text-gray-600 truncate">
-                        {{ $cliente->persona_contacto ?? 'N/A' }}
+                        {{ $cliente->direccion ?? 'No registrada' }}
                     </span>
                 </div>
             </div>

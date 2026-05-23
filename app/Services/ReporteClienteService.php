@@ -14,24 +14,33 @@ class ReporteClienteService
     public function generar_old(int $clienteId, string $desde, string $hasta): array
     {
         $cliente = Cliente::findOrFail($clienteId);
+        $tenantId = $cliente->tenant_id;
 
         // Totales
-        $total = Operacion::where('cliente_id', $clienteId)
+        $total = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->count();
 
-        $greens = Operacion::where('cliente_id', $clienteId)
+        $greens = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->where('modulacion', 'DESADUANAMIENTO LIBRE')
             ->count();
 
-        $reds = Operacion::where('cliente_id', $clienteId)
+        $reds = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->where('modulacion', 'RECONOCIMIENTO ADUANANERO CONCLUIDO')
             ->count();
 
         // Por aduana
-        $porAduana = Operacion::join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $porAduana = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre_aduana as nombre', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
@@ -39,10 +48,12 @@ class ReporteClienteService
             ->get();
 
         // Histórico anual
-        $historial = Operacion::select(
-            DB::raw('MONTH(fecha) as mes'),
-            DB::raw('count(*) as total')
-        )
+        $historial = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->select(
+                DB::raw('MONTH(fecha) as mes'),
+                DB::raw('count(*) as total')
+            )
             ->where('cliente_id', $clienteId)
             ->whereYear('fecha', now()->year)
             ->groupBy('mes')
@@ -136,6 +147,7 @@ class ReporteClienteService
     public function generar(int $clienteId, string $desde, string $hasta): array
     {
         $cliente = Cliente::findOrFail($clienteId);
+        $tenantId = $cliente->tenant_id;
 
         $desdeCarbon = Carbon::parse($desde);
         $hastaCarbon = Carbon::parse($hasta);
@@ -143,16 +155,22 @@ class ReporteClienteService
         // =============================
         // TOTALES
         // =============================
-        $total = Operacion::where('cliente_id', $clienteId)
+        $total = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->count();
 
-        $greens = Operacion::where('cliente_id', $clienteId)
+        $greens = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->where('modulacion', 'DESADUANAMIENTO LIBRE')
             ->count();
 
-        $reds = Operacion::where('cliente_id', $clienteId)
+        $reds = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->where('modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')
             ->count();
@@ -160,7 +178,9 @@ class ReporteClienteService
         // =============================
         // MODULACIONES POR ADUANA
         // =============================
-        $porAduana = Operacion::join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+        $porAduana = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
             ->select('aduanas.nombre_aduana as nombre', DB::raw('count(*) as total'))
             ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
@@ -170,10 +190,12 @@ class ReporteClienteService
         // =============================
         // HISTÓRICO ANUAL
         // =============================
-        $historial = Operacion::select(
-            DB::raw('MONTH(fecha) as mes'),
-            DB::raw('count(*) as total')
-        )
+        $historial = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->select(
+                DB::raw('MONTH(fecha) as mes'),
+                DB::raw('count(*) as total')
+            )
             ->where('cliente_id', $clienteId)
             ->whereYear('fecha', now()->year)
             ->groupBy('mes')
@@ -187,7 +209,9 @@ class ReporteClienteService
         // ===============================
         // NUEVO: Total de sobrepesos
         // ===============================
-        $totalSobrepesos = Operacion::where('cliente_id', $clienteId)
+        $totalSobrepesos = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
             ->whereBetween('fecha', [$desde, $hasta])
             ->where('sobrepeso', true)
             ->count();
@@ -195,12 +219,14 @@ class ReporteClienteService
         // ===============================
         // NUEVO: Distribución de trámites por importador (relacional)
         // ===============================
-        $tramitesPorImportador = Operacion::join(
-            'importadores',
-            'operaciones.importador_id',
-            '=',
-            'importadores.id'
-        )
+        $tramitesPorImportador = Operacion::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->join(
+                'importadores',
+                'operaciones.importador_id',
+                '=',
+                'importadores.id'
+            )
             ->select(
                 'importadores.nombre as importador',
                 DB::raw('count(*) as total')

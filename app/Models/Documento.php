@@ -12,18 +12,24 @@ class Documento extends Model
 
     protected $fillable = [
         'tenant_id',
-        'pedimento_id', // Antes pedimento_id
-        'operacion_id', // Antes operacion_id
+        'pedimento_id',
+        'operacion_id',
         'factura_id',
         'concepto_adicional_id',
-        'nombre', // Antes nombre_documento
-        'ruta', // Antes ruta_archivo
-        'url_archivo', 
-        'peso', 
+        'cliente_id',
+        'nombre',
+        'ruta',
+        'url_archivo',
+        'peso',
         'extension',
-        'tipo_documento', // Mantener o adaptar
+        'fecha_vencimiento',
+        'tipo_documento',
         'created_at',
         'updated_at'
+    ];
+
+    protected $casts = [
+        'fecha_vencimiento' => 'date',
     ];
 
     // Relaciones
@@ -42,6 +48,11 @@ class Documento extends Model
         return $this->belongsTo(Factura::class);
     }
 
+    public function cliente()
+    {
+        return $this->belongsTo(Cliente::class, 'cliente_id');
+    }
+
     // Scopes
     public function scopeDeOperaciones($query)
     {
@@ -53,9 +64,41 @@ class Documento extends Model
         return $query->whereNotNull('pedimento_id');
     }
 
+    public function scopeDeCliente($query, $clienteId)
+    {
+        return $query->where('cliente_id', $clienteId)->whereNull('pedimento_id');
+    }
+
     // Helpers
     public function getUrlAttribute()
     {
+        // INC-001: Priorizar URL de R2 si existe
+        if ($this->url_archivo) {
+            return $this->url_archivo;
+        }
+
+        // Fallback a almacenamiento local legacy
         return $this->ruta ? asset('storage/' . $this->ruta) : null;
+    }
+
+    /**
+     * Determina si el documento está almacenado en R2.
+     */
+    public function getEnR2Attribute(): bool
+    {
+        return !empty($this->url_archivo) && str_starts_with($this->url_archivo, 'https://');
+    }
+
+    /**
+     * Retorna la URL de preview segura.
+     * Si está en R2, retorna la URL pública o firmada.
+     */
+    public function getUrlPreviewAttribute(): ?string
+    {
+        if ($this->en_r2) {
+            return $this->url_archivo;
+        }
+
+        return $this->url;
     }
 }
