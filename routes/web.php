@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegistrationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\ConfigController;
+use App\Http\Controllers\Admin\WhatsAppController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\AduanaController;
@@ -170,6 +171,21 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function () {
     Route::get('/configuracion-smtp', [ConfigController::class, 'smtp'])->name('admin.config.smtp');
     Route::post('/configuracion-smtp', [ConfigController::class, 'guardarSmtp'])->name('admin.config.guardar-smtp');
     Route::post('/configuracion-smtp/probar', [ConfigController::class, 'probarSmtp'])->name('admin.config.smtp.probar');
+
+    // --- Configuración WhatsApp (Evolution API) ---
+    Route::get('/configuracion-whatsapp', [WhatsAppController::class, 'index'])->name('admin.config.whatsapp');
+    Route::post('/admin/whatsapp/conectar', [WhatsAppController::class, 'conectar'])->name('admin.whatsapp.conectar');
+    Route::post('/admin/whatsapp/estado', [WhatsAppController::class, 'estado'])->name('admin.whatsapp.estado');
+    Route::post('/admin/whatsapp/desconectar', [WhatsAppController::class, 'desconectar'])->name('admin.whatsapp.desconectar');
+    Route::post('/admin/whatsapp/grupos', [WhatsAppController::class, 'grupos'])->name('admin.whatsapp.grupos');
+    Route::post('/admin/whatsapp/guardar-plantilla', [WhatsAppController::class, 'guardarPlantilla'])->name('admin.whatsapp.guardarPlantilla');
+    Route::get('/admin/whatsapp/pendientes', [WhatsAppController::class, 'pendientes'])->name('admin.whatsapp.pendientes');
+    Route::post('/admin/whatsapp/reenviar-pendiente', [WhatsAppController::class, 'reenviarPendiente'])->name('admin.whatsapp.reenviarPendiente');
+    Route::post('/admin/whatsapp/descartar-pendiente', [WhatsAppController::class, 'descartarPendiente'])->name('admin.whatsapp.descartarPendiente');
+    Route::post('/admin/whatsapp/descartar-todas-pendientes', [WhatsAppController::class, 'descartarTodasPendientes'])->name('admin.whatsapp.descartarTodasPendientes');
+    Route::post('/admin/whatsapp/contactos', [WhatsAppController::class, 'contactos'])->name('admin.whatsapp.contactos');
+    Route::get('/admin/whatsapp/debug/instancias', [WhatsAppController::class, 'debugInstancias'])->name('admin.whatsapp.debug.instancias');
+    Route::get('/admin/whatsapp/debug/contactos', [WhatsAppController::class, 'debugContactos'])->name('admin.whatsapp.debug.contactos');
 
     // --- Panel de Control SOIA-Bot ---
     Route::get('/admin/bot-doda', [DodaBotController::class, 'showTestPanel'])->name('admin.bot-doda.panel');
@@ -364,6 +380,8 @@ Route::middleware(['auth'])->prefix('documentador')->name('documentador.')->grou
 
     // --- Trabajar en operación ---
     Route::get('/trabajar/{id}', [DocumentadorController::class, 'trabajarOperacion2'])->name('trabajar');
+    Route::get('/operacion/{id}/editar', [DocumentadorController::class, 'editarOperacion'])->name('documentador.operacion.editar');
+    Route::post('/operacion/{id}/campo', [DocumentadorController::class, 'actualizarCampoOperacion'])->name('documentador.operacion.campo');
 
     // --- Acciones de trámite ---
     Route::post('/store', [DocumentadorController::class, 'storeOperacion'])->name('storeOperacion');
@@ -516,6 +534,14 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('report.access:patron_clientes')
         ->name('reportes.patrones-cliente');
 
+    // --- Reporte de Pedimentos ---
+    Route::get('/reportes/pedimentos', [ReporteController::class, 'reportePedimentos'])
+        ->middleware('report.access:pedimentos')
+        ->name('reportes.pedimentos');
+    Route::get('/reportes/pedimentos/pdf', [ReporteController::class, 'reportePedimentosPdf'])
+        ->middleware('report.access:pedimentos')
+        ->name('reportes.pedimentos.pdf');
+
     // --- Reportes Especiales ---
 // Route::get('/reportessemanas', [ReporteController::class, 'expsem']);
     Route::get('/reportes/calendario-primeras-operaciones', [ReporteController::class, 'calendarioPrimerasOperaciones'])
@@ -623,5 +649,8 @@ Route::prefix('api/bot/doda')->group(function () {
     Route::get('/ejecutar', [DodaBotController::class, 'ejecutar']);
     Route::get('/status', [DodaBotController::class, 'status']);
     Route::get('/health', [DodaBotController::class, 'health']);
+    Route::get('/tenants-automaticos', [DodaBotController::class, 'tenantsAutomaticos']);
+    Route::post('/ejecutar-tenant/{tenantId}', [DodaBotController::class, 'ejecutarTenant']);
     Route::post('/rollover-dates', [DodaBotController::class, 'actualizarFechasRezagadas']);
+    Route::post('/rollover-pendientes', [DodaBotController::class, 'rolloverOperacionesPendientes']);
 });
