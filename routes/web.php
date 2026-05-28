@@ -260,6 +260,10 @@ Route::middleware(['auth'])->group(function () {
     // Actualizar checklist
     Route::post('/expedientes/{expediente}/update-checklist', [ExpedienteController::class, 'updateChecklist'])
         ->name('expedientes.updateChecklist');
+
+    // Documentos pendientes (JSON)
+    Route::get('/expedientes/{expediente}/documentos-pendientes', [ExpedienteController::class, 'documentosPendientes'])
+        ->name('expedientes.documentos-pendientes');
 });
 
 // ============================================================================

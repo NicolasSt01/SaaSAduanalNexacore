@@ -565,6 +565,18 @@ class ExpedienteController extends Controller
      }*/
 
 
+    /**
+     * Retorna los documentos pendientes de un expediente como JSON
+     */
+    public function documentosPendientes(Expediente $expediente)
+    {
+        if ($expediente->tenant_id !== auth()->user()->tenant_id) {
+            abort(403);
+        }
+
+        return response()->json($expediente->documentos_pendientes);
+    }
+
     public function indexCliente()
     {
         // Verificar que el usuario sea un cliente
