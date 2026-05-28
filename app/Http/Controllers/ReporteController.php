@@ -10,6 +10,7 @@ use DB;
 use App\Models\Expediente;
 use App\Models\ConceptoAdicional;
 use App\Models\Aduana;
+use App\Models\Documento;
 
 class ReporteController extends Controller
 {
@@ -401,6 +402,216 @@ class ReporteController extends Controller
 
 
 
+        // ===============================
+        // #4: DISTRIBUCIÓN POR PATENTE ADUANAL
+        // ===============================
+        $porPatente = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->join('patentes', 'operaciones.patente_id', '=', 'patentes.id')
+            ->select('patentes.nombre as nombre', 'patentes.numero as numero', DB::raw('count(*) as total'))
+            ->where('operaciones.cliente_id', $clienteId)
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$desde, $hasta])
+            ->groupBy('patentes.id', 'patentes.nombre', 'patentes.numero')
+            ->orderByDesc('total')
+            ->get();
+
+        $verdesPorPatente = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->join('patentes', 'operaciones.patente_id', '=', 'patentes.id')
+            ->select('patentes.nombre as patente', DB::raw('count(*) as total'))
+            ->where('operaciones.cliente_id', $clienteId)
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$desde, $hasta])
+            ->where('operaciones.modulacion', 'DESADUANAMIENTO LIBRE')
+            ->groupBy('patentes.nombre')
+            ->pluck('total', 'patente');
+
+        $rojosPorPatente = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->join('patentes', 'operaciones.patente_id', '=', 'patentes.id')
+            ->select('patentes.nombre as patente', DB::raw('count(*) as total'))
+            ->where('operaciones.cliente_id', $clienteId)
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$desde, $hasta])
+            ->where('operaciones.modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')
+            ->groupBy('patentes.nombre')
+            ->pluck('total', 'patente');
+
+        // ===============================
+        // #5: TOP IMPORTADORES
+        // ===============================
+        $porImportador = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
+            ->select('importadores.nombre as nombre', DB::raw('count(*) as total'))
+            ->where('operaciones.cliente_id', $clienteId)
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$desde, $hasta])
+            ->groupBy('importadores.id', 'importadores.nombre')
+            ->orderByDesc('total')
+            ->get();
+
+        // ===============================
+        // #6: DISTRIBUCIÓN POR BODEGA
+        // ===============================
+        $porBodega = Operacion::where('operaciones.tenant_id', auth()->user()->tenant_id)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->leftJoin('bodegas', 'operaciones.bodega_id', '=', 'bodegas.id')
+            ->select(DB::raw('COALESCE(bodegas.nombre, "Sin Bodega") as nombre'), DB::raw('count(*) as total'))
+            ->where('operaciones.cliente_id', $clienteId)
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$desde, $hasta])
+            ->groupBy('bodegas.id', 'bodegas.nombre')
+            ->orderByDesc('total')
+            ->get();
+
+        // ===============================
+        // #7: COMPLETITUD DOCUMENTAL
+        // ===============================
+        $operacionesIds = Operacion::where('tenant_id', auth()->user()->tenant_id)
+            ->where('estado', '!=', 'cancelada')
+            ->where('cliente_id', $clienteId)
+            ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
+            ->pluck('id');
+
+        $docsPorOperacion = Documento::whereIn('operacion_id', $operacionesIds)
+            ->select('operacion_id', DB::raw('count(*) as total_docs'))
+            ->groupBy('operacion_id')
+            ->pluck('total_docs', 'operacion_id');
+
+        $totalOps = $operacionesIds->count();
+        $opsConDocs = $docsPorOperacion->count();
+        $opsSinDocs = $totalOps - $opsConDocs;
+        $promedioDocsPorOp = $totalOps > 0 ? round($docsPorOperacion->sum() / $totalOps, 1) : 0;
+
+        // Tipos de documentos requeridos (Art. 36-A)
+        $tiposRequeridos = ['factura', 'encargo', 'transporte', 'empaque'];
+        $completasCount = 0;
+        $incompletasCount = 0;
+
+        foreach ($operacionesIds as $opId) {
+            $tiposPresentes = Documento::where('operacion_id', $opId)
+                ->whereIn('tipo_documento', $tiposRequeridos)
+                ->pluck('tipo_documento')
+                ->unique()
+                ->toArray();
+
+            if (count(array_intersect($tiposRequeridos, $tiposPresentes)) === count($tiposRequeridos)) {
+                $completasCount++;
+            } else {
+                $incompletasCount++;
+            }
+        }
+
+        $completitudDocs = [
+            'total_operaciones' => $totalOps,
+            'con_documentos' => $opsConDocs,
+            'sin_documentos' => $opsSinDocs,
+            'promedio_docs' => $promedioDocsPorOp,
+            'completas' => $completasCount,
+            'incompletas' => $incompletasCount,
+            'porcentaje_completas' => $totalOps > 0 ? round(($completasCount / $totalOps) * 100, 1) : 0,
+        ];
+
+        // ===============================
+        // #9: TENDENCIA DE MODULACIÓN + HEATMAP
+        // ===============================
+        $tendenciaModulacion = Operacion::where('tenant_id', auth()->user()->tenant_id)
+            ->where('estado', '!=', 'cancelada')
+            ->select(
+                DB::raw('YEAR(fecha_cruce_estimada) as anio'),
+                DB::raw('MONTH(fecha_cruce_estimada) as mes'),
+                DB::raw("SUM(CASE WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 1 ELSE 0 END) as verdes"),
+                DB::raw("SUM(CASE WHEN modulacion = 'RECONOCIMIENTO ADUANERO CONCLUIDO' THEN 1 ELSE 0 END) as rojos")
+            )
+            ->where('cliente_id', $clienteId)
+            ->whereBetween('fecha_cruce_estimada', [
+                Carbon::now()->startOfYear(),
+                Carbon::now()->endOfYear()
+            ])
+            ->groupBy('anio', 'mes')
+            ->orderBy('mes')
+            ->get();
+
+        $tendenciaMeses = [];
+        $tendenciaVerdes = [];
+        $tendenciaRojos = [];
+        foreach ($meses as $m) {
+            $tendenciaMeses[] = Carbon::create()->month($m)->translatedFormat('M');
+            $row = $tendenciaModulacion->where('mes', $m)->first();
+            $tendenciaVerdes[] = $row ? $row->verdes : 0;
+            $tendenciaRojos[] = $row ? $row->rojos : 0;
+        }
+
+        // Heatmap por día de la semana
+        $heatmapData = Operacion::where('tenant_id', auth()->user()->tenant_id)
+            ->where('estado', '!=', 'cancelada')
+            ->select(
+                DB::raw('DAYOFWEEK(fecha_cruce_estimada) as dia_semana'),
+                DB::raw("SUM(CASE WHEN modulacion = 'DESADUANAMIENTO LIBRE' THEN 1 ELSE 0 END) as verdes"),
+                DB::raw("SUM(CASE WHEN modulacion = 'RECONOCIMIENTO ADUANERO CONCLUIDO' THEN 1 ELSE 0 END) as rojos")
+            )
+            ->where('cliente_id', $clienteId)
+            ->whereBetween('fecha_cruce_estimada', [$desde, $hasta])
+            ->groupBy(DB::raw('DAYOFWEEK(fecha_cruce_estimada)'))
+            ->get();
+
+        $diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        $heatmap = [];
+        foreach ($diasSemana as $i => $dia) {
+            $row = $heatmapData->where('dia_semana', $i + 1)->first();
+            $verdes = $row ? $row->verdes : 0;
+            $rojos = $row ? $row->rojos : 0;
+            $totalDia = $verdes + $rojos;
+            $heatmap[] = [
+                'dia' => $dia,
+                'verdes' => $verdes,
+                'rojos' => $rojos,
+                'total' => $totalDia,
+                'porcentaje_verde' => $totalDia > 0 ? round(($verdes / $totalDia) * 100) : 0,
+            ];
+        }
+
+        // ===============================
+        // #10: PREDICCIÓN DE VOLUMEN
+        // ===============================
+        $historicoPrediccion = Operacion::where('tenant_id', auth()->user()->tenant_id)
+            ->where('estado', '!=', 'cancelada')
+            ->select(
+                DB::raw('YEAR(fecha_cruce_estimada) as anio'),
+                DB::raw('MONTH(fecha_cruce_estimada) as mes'),
+                DB::raw('count(*) as total')
+            )
+            ->where('cliente_id', $clienteId)
+            ->whereBetween('fecha_cruce_estimada', [
+                Carbon::now()->subMonths(6)->startOfMonth(),
+                Carbon::now()->endOfMonth()
+            ])
+            ->groupBy('anio', 'mes')
+            ->orderBy('anio')
+            ->orderBy('mes')
+            ->get();
+
+        $valoresHistoricos = $historicoPrediccion->pluck('total')->toArray();
+        $promedioMovil = count($valoresHistoricos) >= 3
+            ? round(array_sum(array_slice($valoresHistoricos, -3)) / 3)
+            : (count($valoresHistoricos) > 0 ? round(array_sum($valoresHistoricos) / count($valoresHistoricos)) : 0);
+
+        // Tendencia simple (últimos 3 meses)
+        $tendencia = 0;
+        if (count($valoresHistoricos) >= 2) {
+            $ultimo = end($valoresHistoricos);
+            $penultimo = $valoresHistoricos[count($valoresHistoricos) - 2];
+            $tendencia = $ultimo - $penultimo;
+        }
+
+        $prediccionProximoMes = max(0, $promedioMovil + $tendencia);
+
+        $prediccionLabels = [];
+        $prediccionData = [];
+        foreach ($historicoPrediccion as $row) {
+            $prediccionLabels[] = Carbon::create($row->anio, $row->mes)->translatedFormat('M Y');
+            $prediccionData[] = $row->total;
+        }
+        $prediccionLabels[] = Carbon::now()->addMonth()->translatedFormat('M Y') . ' (Pred.)';
+        $prediccionData[] = $prediccionProximoMes;
+
         return view('reportes.reporte-cliente', compact(
             'clientes',
             'clienteId',
@@ -417,12 +628,299 @@ class ReporteController extends Controller
             'tramitesPorDia',
             'periodo',
             'calendario',
+            'porPatente',
+            'verdesPorPatente',
+            'rojosPorPatente',
+            'porImportador',
+            'porBodega',
+            'completitudDocs',
+            'tendenciaMeses',
+            'tendenciaVerdes',
+            'tendenciaRojos',
+            'heatmap',
+            'prediccionLabels',
+            'prediccionData',
+            'prediccionProximoMes',
             'mesCalendario'
 
         ));
     }
 
+    public function reporteClientePdf(Request $request)
+    {
+        $clienteId = $request->input('cliente_id');
+        $desde = $request->input('desde', now()->subYear()->format('Y-m-d'));
+        $hasta = $request->input('hasta', now()->format('Y-m-d'));
 
+        if (!$clienteId) {
+            abort(400, 'Cliente requerido');
+        }
+
+        $cliente = Cliente::findOrFail($clienteId);
+        $tenantId = auth()->user()->tenant_id;
+
+        $baseQuery = fn() => Operacion::where('operaciones.tenant_id', $tenantId)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->where('operaciones.cliente_id', $clienteId)
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$desde, $hasta]);
+
+        $total = $baseQuery()->count();
+        $greens = (clone $baseQuery())->where('operaciones.modulacion', 'DESADUANAMIENTO LIBRE')->count();
+        $reds = (clone $baseQuery())->where('operaciones.modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')->count();
+
+        $porAduana = (clone $baseQuery())
+            ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+            ->select('aduanas.nombre as nombre', DB::raw('count(*) as total'))
+            ->groupBy('aduanas.nombre')->orderByDesc('total')->get();
+
+        $verdesPorAduana = (clone $baseQuery())
+            ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+            ->select('aduanas.nombre as aduana', DB::raw('count(*) as total'))
+            ->where('operaciones.modulacion', 'DESADUANAMIENTO LIBRE')
+            ->groupBy('aduanas.nombre')->get();
+
+        $rojosPorAduana = (clone $baseQuery())
+            ->join('aduanas', 'operaciones.aduana_id', '=', 'aduanas.id')
+            ->select('aduanas.nombre as aduana', DB::raw('count(*) as total'))
+            ->where('operaciones.modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')
+            ->groupBy('aduanas.nombre')->get();
+
+        $meses = range(1, 12);
+        $historialMeses = [];
+        $historial = Operacion::where('operaciones.tenant_id', $tenantId)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->where('operaciones.cliente_id', $clienteId)
+            ->select(DB::raw('MONTH(operaciones.fecha_cruce_estimada) as mes'), DB::raw('count(*) as total'))
+            ->whereBetween('operaciones.fecha_cruce_estimada', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()])
+            ->groupBy('mes')->pluck('total', 'mes');
+        foreach ($meses as $m) {
+            $historialMeses[$m] = $historial[$m] ?? 0;
+        }
+
+        $inicioMes = Carbon::parse($hasta)->startOfMonth();
+        $finMes = Carbon::parse($hasta)->endOfMonth();
+        $rawCalendario = Operacion::where('operaciones.tenant_id', $tenantId)
+            ->where('operaciones.estado', '!=', 'cancelada')
+            ->where('operaciones.cliente_id', $clienteId)
+            ->select(DB::raw('DATE(operaciones.fecha_cruce_estimada) as fecha'), DB::raw('count(*) as total'))
+            ->whereBetween('operaciones.fecha_cruce_estimada', [$inicioMes, $finMes])
+            ->groupBy(DB::raw('DATE(operaciones.fecha_cruce_estimada)'))
+            ->pluck('total', 'fecha');
+
+        $calendario = []; $cursor = $inicioMes->copy()->startOfWeek(Carbon::MONDAY);
+        $finCalendario = $finMes->copy()->endOfWeek(Carbon::SUNDAY);
+        while ($cursor <= $finCalendario) {
+            $semana = [];
+            for ($i = 0; $i < 7; $i++) {
+                $fecha = $cursor->format('Y-m-d');
+                $semana[] = ['fecha' => $fecha, 'fecha_cruce_estimada' => $fecha, 'dia' => $cursor->day, 'mes' => $cursor->month, 'total' => $rawCalendario[$fecha] ?? 0, 'actual' => $cursor->month === $inicioMes->month, 'dia_semana' => $cursor->locale('es')->shortDayName];
+                $cursor->addDay();
+            }
+            $calendario[] = $semana;
+        }
+
+        // #4: Patentes
+        $porPatente = (clone $baseQuery())
+            ->join('patentes', 'operaciones.patente_id', '=', 'patentes.id')
+            ->select('patentes.nombre as nombre', 'patentes.numero as numero', DB::raw('count(*) as total'))
+            ->groupBy('patentes.id', 'patentes.nombre', 'patentes.numero')->orderByDesc('total')->get();
+        $verdesPorPatente = (clone $baseQuery())
+            ->join('patentes', 'operaciones.patente_id', '=', 'patentes.id')
+            ->select('patentes.nombre as patente', DB::raw('count(*) as total'))
+            ->where('operaciones.modulacion', 'DESADUANAMIENTO LIBRE')
+            ->groupBy('patentes.nombre')->pluck('total', 'patente');
+        $rojosPorPatente = (clone $baseQuery())
+            ->join('patentes', 'operaciones.patente_id', '=', 'patentes.id')
+            ->select('patentes.nombre as patente', DB::raw('count(*) as total'))
+            ->where('operaciones.modulacion', 'RECONOCIMIENTO ADUANERO CONCLUIDO')
+            ->groupBy('patentes.nombre')->pluck('total', 'patente');
+
+        // #5: Importadores
+        $porImportador = (clone $baseQuery())
+            ->join('importadores', 'operaciones.importador_id', '=', 'importadores.id')
+            ->select('importadores.nombre as importador', DB::raw('count(*) as total'))
+            ->groupBy('importadores.id', 'importadores.nombre')->orderByDesc('total')->get();
+
+        // #6: Bodegas
+        $porBodega = (clone $baseQuery())
+            ->leftJoin('bodegas', 'operaciones.bodega_id', '=', 'bodegas.id')
+            ->select(DB::raw('COALESCE(bodegas.nombre, "Sin Bodega") as nombre'), DB::raw('count(*) as total'))
+            ->groupBy('bodegas.id', 'bodegas.nombre')->orderByDesc('total')->get();
+
+        // #7: Completitud Documental
+        $operacionesIds = (clone $baseQuery())->pluck('id');
+        $docsPorOperacion = Documento::whereIn('operacion_id', $operacionesIds)
+            ->select('operacion_id', DB::raw('count(*) as total_docs'))
+            ->groupBy('operacion_id')->pluck('total_docs', 'operacion_id');
+        $totalOps = $operacionesIds->count();
+        $promedioDocsPorOp = $totalOps > 0 ? round($docsPorOperacion->sum() / $totalOps, 1) : 0;
+        $tiposRequeridos = ['factura', 'encargo', 'transporte', 'empaque'];
+        $completasCount = 0;
+        foreach ($operacionesIds as $opId) {
+            $tiposPresentes = Documento::where('operacion_id', $opId)->whereIn('tipo_documento', $tiposRequeridos)->pluck('tipo_documento')->unique()->toArray();
+            if (count(array_intersect($tiposRequeridos, $tiposPresentes)) === count($tiposRequeridos)) $completasCount++;
+        }
+        $completitudDocs = [
+            'total_operaciones' => $totalOps, 'completas' => $completasCount,
+            'incompletas' => $totalOps - $completasCount, 'promedio_docs' => $promedioDocsPorOp,
+            'porcentaje_completas' => $totalOps > 0 ? round(($completasCount / $totalOps) * 100, 1) : 0,
+        ];
+
+        // #9: Tendencia + Heatmap
+        $tendenciaModulacion = Operacion::where('operaciones.tenant_id', $tenantId)
+            ->where('operaciones.estado', '!=', 'cancelada')->where('operaciones.cliente_id', $clienteId)
+            ->select(DB::raw('MONTH(operaciones.fecha_cruce_estimada) as mes'),
+                DB::raw("SUM(CASE WHEN operaciones.modulacion = 'DESADUANAMIENTO LIBRE' THEN 1 ELSE 0 END) as verdes"),
+                DB::raw("SUM(CASE WHEN operaciones.modulacion = 'RECONOCIMIENTO ADUANERO CONCLUIDO' THEN 1 ELSE 0 END) as rojos"))
+            ->whereBetween('operaciones.fecha_cruce_estimada', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()])
+            ->groupBy('mes')->orderBy('mes')->get();
+        $tendenciaVerdes = []; $tendenciaRojos = [];
+        foreach ($meses as $m) { $r = $tendenciaModulacion->where('mes', $m)->first(); $tendenciaVerdes[] = $r ? (int)$r->verdes : 0; $tendenciaRojos[] = $r ? (int)$r->rojos : 0; }
+
+        $heatmapData = (clone $baseQuery())
+            ->select(DB::raw('DAYOFWEEK(operaciones.fecha_cruce_estimada) as dia_semana'),
+                DB::raw("SUM(CASE WHEN operaciones.modulacion = 'DESADUANAMIENTO LIBRE' THEN 1 ELSE 0 END) as verdes"),
+                DB::raw("SUM(CASE WHEN operaciones.modulacion = 'RECONOCIMIENTO ADUANERO CONCLUIDO' THEN 1 ELSE 0 END) as rojos"))
+            ->groupBy(DB::raw('DAYOFWEEK(operaciones.fecha_cruce_estimada)'))->get();
+        $diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        $heatmap = [];
+        foreach ($diasSemana as $i => $dia) {
+            $row = $heatmapData->where('dia_semana', $i + 1)->first();
+            $v = $row ? (int)$row->verdes : 0; $r = $row ? (int)$row->rojos : 0; $td = $v + $r;
+            $heatmap[] = ['dia' => $dia, 'verdes' => $v, 'rojos' => $r, 'total' => $td, 'porcentaje_verde' => $td > 0 ? round(($v / $td) * 100) : 0];
+        }
+
+        // #10: Predicción
+        $historicoPrediccion = Operacion::where('operaciones.tenant_id', $tenantId)
+            ->where('operaciones.estado', '!=', 'cancelada')->where('operaciones.cliente_id', $clienteId)
+            ->select(DB::raw("DATE_FORMAT(operaciones.fecha_cruce_estimada, '%Y-%m') as ym"), DB::raw('count(*) as total'))
+            ->whereBetween('operaciones.fecha_cruce_estimada', [Carbon::now()->subMonths(6)->startOfMonth(), Carbon::now()->endOfMonth()])
+            ->groupBy('ym')->orderBy('ym')->get();
+        $valoresHistoricos = $historicoPrediccion->pluck('total')->toArray();
+        $promedioMovil = count($valoresHistoricos) >= 3 ? round(array_sum(array_slice($valoresHistoricos, -3)) / 3) : (count($valoresHistoricos) > 0 ? round(array_sum($valoresHistoricos) / count($valoresHistoricos)) : 0);
+        $tendencia = 0;
+        if (count($valoresHistoricos) >= 2) { $ultimo = end($valoresHistoricos); $penultimo = $valoresHistoricos[count($valoresHistoricos) - 2]; $tendencia = $ultimo - $penultimo; }
+        $prediccionProximoMes = max(0, $promedioMovil + $tendencia);
+
+        $datos = [
+            'cliente' => ['nombre' => $cliente->nombre, 'nombre_empresa' => $cliente->nombre_empresa ?? $cliente->nombre, 'email' => $cliente->email ?? ''],
+            'periodo' => ['desde' => $desde, 'hasta' => $hasta],
+            'estadisticas' => ['total' => $total, 'greens' => $greens, 'reds' => $reds, 'sobrepesos' => 0],
+            'porAduana' => $porAduana->toArray(),
+            'verdesPorAduana' => $verdesPorAduana->toArray(),
+            'rojosPorAduana' => $rojosPorAduana->toArray(),
+            'historialMeses' => $historialMeses,
+            'topImportadores' => $porImportador->toArray(),
+            'tramitesPorDia' => [],
+            'calendario' => $calendario,
+            'porPatente' => $porPatente->toArray(),
+            'verdesPorPatente' => $verdesPorPatente->toArray(),
+            'rojosPorPatente' => $rojosPorPatente->toArray(),
+            'porBodega' => $porBodega->toArray(),
+            'completitudDocs' => $completitudDocs,
+            'tendenciaVerdes' => $tendenciaVerdes,
+            'tendenciaRojos' => $tendenciaRojos,
+            'heatmap' => $heatmap,
+            'prediccionLabels' => [],
+            'prediccionData' => [],
+            'prediccionProximoMes' => $prediccionProximoMes,
+        ];
+
+        try {
+            $charts = $this->generarChartUrlsPdfCompleto($datos);
+        } catch (\Throwable $e) {
+            \Log::warning('Error generando charts SVG', ['error' => $e->getMessage()]);
+            $charts = [];
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.pdf-reporte', compact('datos', 'charts'));
+        $pdf->setPaper('letter', 'portrait');
+        return $pdf->download('reporte_' . str_replace(' ', '_', $cliente->nombre) . '.pdf');
+    }
+
+    private function generarChartUrlsPdfCompleto(array $datos): array
+    {
+        $urls = [];
+
+        $quickChart = function (array $config, int $w = 220, int $h = 140): ?string {
+            $config['width'] = $w; $config['height'] = $h;
+            $config['backgroundColor'] = 'white'; $config['devicePixelRatio'] = 1;
+            $config['format'] = 'png';
+            try {
+                $json = json_encode($config);
+                if (strlen($json) > 8000) { return null; }
+                $url = 'https://quickchart.io/chart?c=' . urlencode($json);
+                $ctx = stream_context_create(['http' => ['timeout' => 10, 'user_agent' => 'NexaCore/1.0']]);
+                $png = @file_get_contents($url, false, $ctx);
+                if ($png === false || strlen($png) < 100 || strlen($png) > 150000) { return null; }
+                return 'data:image/png;base64,' . base64_encode($png);
+            } catch (\Throwable $e) { return null; }
+        };
+
+        $stats = $datos['estadisticas'];
+
+        $urls['greensReds'] = $quickChart([
+            'type' => 'doughnut', 'data' => ['labels' => ['Verdes', 'Rojos'], 'datasets' => [['data' => [$stats['greens'], $stats['reds']], 'backgroundColor' => ['#28a745','#dc3545'], 'borderWidth' => 0]]],
+            'options' => ['plugins' => ['legend' => ['display' => true, 'position' => 'bottom', 'labels' => ['font' => ['size' => 10]]]]]
+        ], 220, 140);
+
+        if (!empty($datos['porAduana'])) {
+            $urls['aduanas'] = $quickChart([
+                'type' => 'doughnut', 'data' => ['labels' => array_column($datos['porAduana'], 'nombre'), 'datasets' => [['data' => array_column($datos['porAduana'], 'total'), 'backgroundColor' => ['#1e3a5f','#1a7a3a','#b8860b','#b91c1c','#0e7490','#6f42c1','#d946ef','#f97316'], 'borderWidth' => 0]]],
+                'options' => ['plugins' => ['legend' => ['display' => true, 'position' => 'right', 'labels' => ['font' => ['size' => 7], 'padding' => 3, 'boxWidth' => 6]]]]
+            ], 220, 140);
+        }
+
+        if (!empty($datos['historialMeses'])) {
+            $mv = [];
+            for ($i = 1; $i <= 12; $i++) { $mv[] = (int)($datos['historialMeses'][$i] ?? 0); }
+            $urls['historico'] = $quickChart([
+                'type' => 'line', 'data' => ['labels' => ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], 'datasets' => [['data' => $mv, 'borderColor' => '#1e3a5f', 'backgroundColor' => 'rgba(30,58,95,0.08)', 'fill' => true, 'tension' => 0.4, 'borderWidth' => 1.5, 'pointRadius' => 2, 'pointBackgroundColor' => '#1e3a5f']]],
+                'options' => ['scales' => ['y' => ['beginAtZero' => true]], 'plugins' => ['legend' => ['display' => false]]]
+            ], 340, 130);
+        }
+
+        if (!empty($datos['tendenciaVerdes'])) {
+            $urls['tendencia'] = $quickChart([
+                'type' => 'line', 'data' => ['labels' => ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], 'datasets' => [
+                    ['label' => 'Verdes', 'data' => $datos['tendenciaVerdes'], 'borderColor' => '#1a7a3a', 'backgroundColor' => 'rgba(26,122,58,0.08)', 'fill' => true, 'tension' => 0.4, 'borderWidth' => 1.5, 'pointRadius' => 2],
+                    ['label' => 'Rojos', 'data' => $datos['tendenciaRojos'], 'borderColor' => '#b91c1c', 'backgroundColor' => 'rgba(185,28,28,0.08)', 'fill' => true, 'tension' => 0.4, 'borderWidth' => 1.5, 'pointRadius' => 2],
+                ]],
+                'options' => ['scales' => ['y' => ['beginAtZero' => true]], 'plugins' => ['legend' => ['display' => true, 'labels' => ['font' => ['size' => 8]]]]]
+            ], 340, 130);
+        }
+
+        if (!empty($datos['porPatente'])) {
+            $pn = array_column($datos['porPatente'], 'nombre');
+            $pvd = []; $prd = [];
+            foreach ($pn as $p) {
+                $pvd[] = (int)($datos['verdesPorPatente'][$p] ?? 0);
+                $prd[] = (int)($datos['rojosPorPatente'][$p] ?? 0);
+            }
+            $urls['patentes'] = $quickChart([
+                'type' => 'bar', 'data' => ['labels' => $pn, 'datasets' => [['label' => 'Verdes', 'data' => $pvd, 'backgroundColor' => '#1a7a3a'], ['label' => 'Rojos', 'data' => $prd, 'backgroundColor' => '#b91c1c']]],
+                'options' => ['scales' => ['y' => ['beginAtZero' => true, 'stacked' => true], 'x' => ['stacked' => true]], 'plugins' => ['legend' => ['display' => true, 'labels' => ['font' => ['size' => 8]]]]]
+            ], 280, 130);
+        }
+
+        if (!empty($datos['topImportadores'])) {
+            $il = array_slice(array_column($datos['topImportadores'], 'importador'), 0, 8);
+            $id = array_slice(array_column($datos['topImportadores'], 'total'), 0, 8);
+            $urls['importadores'] = $quickChart([
+                'type' => 'bar', 'data' => ['labels' => $il, 'datasets' => [['data' => $id, 'backgroundColor' => '#1e3a5f']]],
+                'options' => ['indexAxis' => 'y', 'scales' => ['y' => ['beginAtZero' => true]], 'plugins' => ['legend' => ['display' => false]]]
+            ], 250, 150);
+        }
+
+        if (!empty($datos['porBodega'])) {
+            $urls['bodegas'] = $quickChart([
+                'type' => 'doughnut', 'data' => ['labels' => array_column($datos['porBodega'], 'nombre'), 'datasets' => [['data' => array_column($datos['porBodega'], 'total'), 'backgroundColor' => ['#1e3a5f','#f97316','#1a7a3a','#b91c1c','#0e7490'], 'borderWidth' => 0]]],
+                'options' => ['plugins' => ['legend' => ['display' => true, 'position' => 'bottom', 'labels' => ['font' => ['size' => 7], 'padding' => 2]]]]
+            ], 180, 130);
+        }
+
+        return array_filter($urls);
+    }
     public function operacionesDiarias_old(Request $request)
     {
         $fecha = $request->input('fecha_cruce_estimada', now()->format('Y-m-d'));
@@ -2949,5 +3447,164 @@ class ReporteController extends Controller
 
 
 
+
+
+    /**
+     * Reporte de Pedimentos - Directorio completo con filtros y KPIs
+     */
+    public function reportePedimentos(Request $request)
+    {
+        $tenantId = auth()->user()->tenant_id;
+
+        $clientes = Cliente::orderBy('nombre')->get();
+
+        $desde = $request->input('desde');
+        $hasta = $request->input('hasta');
+        $numeroPedimento = $request->input('numero_pedimento');
+        $clienteId = $request->input('cliente_id');
+        $estado = $request->input('estado');
+        $categoria = $request->input('categoria');
+
+        $query = Expediente::where('tenant_id', $tenantId)
+            ->with(['cliente', 'patente', 'aduana', 'operaciones.documentos']);
+
+        if ($desde) {
+            $query->whereDate('fecha_apertura', '>=', $desde);
+        }
+        if ($hasta) {
+            $query->whereDate('fecha_apertura', '<=', $hasta);
+        }
+        if ($numeroPedimento) {
+            $query->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%');
+        }
+        if ($clienteId) {
+            $query->where('cliente_id', $clienteId);
+        }
+        if ($estado) {
+            $query->where('estado', $estado);
+        }
+        if ($categoria) {
+            $query->where('categoria', $categoria);
+        }
+
+        $pedimentos = $query->orderByDesc('fecha_apertura')->paginate(15);
+
+        $totalPedimentos = $pedimentos->total();
+
+        $cumplidos = Expediente::where('tenant_id', $tenantId)
+            ->where('estado', 'Cerrado')
+            ->when($desde, fn($q) => $q->whereDate('fecha_apertura', '>=', $desde))
+            ->when($hasta, fn($q) => $q->whereDate('fecha_apertura', '<=', $hasta))
+            ->when($numeroPedimento, fn($q) => $q->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%'))
+            ->when($clienteId, fn($q) => $q->where('cliente_id', $clienteId))
+            ->when($estado, fn($q) => $q->where('estado', $estado))
+            ->when($categoria, fn($q) => $q->where('categoria', $categoria))
+            ->count();
+
+        $pendientes = Expediente::where('tenant_id', $tenantId)
+            ->whereIn('estado', ['En proceso', 'Abierto'])
+            ->when($desde, fn($q) => $q->whereDate('fecha_apertura', '>=', $desde))
+            ->when($hasta, fn($q) => $q->whereDate('fecha_apertura', '<=', $hasta))
+            ->when($numeroPedimento, fn($q) => $q->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%'))
+            ->when($clienteId, fn($q) => $q->where('cliente_id', $clienteId))
+            ->when($estado, fn($q) => $q->where('estado', $estado))
+            ->when($categoria, fn($q) => $q->where('categoria', $categoria))
+            ->count();
+
+        $docsFaltantes = 0;
+        foreach ($pedimentos->items() as $pedimento) {
+            if (!$pedimento->cumplimiento_completo) {
+                $docsFaltantes++;
+            }
+        }
+
+        return view('reportes.reporte-pedimentos', compact(
+            'pedimentos',
+            'clientes',
+            'totalPedimentos',
+            'cumplidos',
+            'pendientes',
+            'docsFaltantes',
+            'desde',
+            'hasta',
+            'numeroPedimento',
+            'clienteId',
+            'estado',
+            'categoria',
+        ));
+    }
+
+    /**
+     * PDF del Reporte de Pedimentos
+     */
+    public function reportePedimentosPdf(Request $request)
+    {
+        $tenantId = auth()->user()->tenant_id;
+
+        $desde = $request->input('desde');
+        $hasta = $request->input('hasta');
+        $numeroPedimento = $request->input('numero_pedimento');
+        $clienteId = $request->input('cliente_id');
+        $estado = $request->input('estado');
+        $categoria = $request->input('categoria');
+
+        $query = Expediente::where('tenant_id', $tenantId)
+            ->with(['cliente', 'patente', 'aduana']);
+
+        if ($desde) {
+            $query->whereDate('fecha_apertura', '>=', $desde);
+        }
+        if ($hasta) {
+            $query->whereDate('fecha_apertura', '<=', $hasta);
+        }
+        if ($numeroPedimento) {
+            $query->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%');
+        }
+        if ($clienteId) {
+            $query->where('cliente_id', $clienteId);
+        }
+        if ($estado) {
+            $query->where('estado', $estado);
+        }
+        if ($categoria) {
+            $query->where('categoria', $categoria);
+        }
+
+        $pedimentos = $query->orderByDesc('fecha_apertura')->get();
+
+        $totalPedimentos = $pedimentos->count();
+        $cumplidos = $pedimentos->where('estado', 'Cerrado')->count();
+        $pendientes = $pedimentos->whereIn('estado', ['En proceso', 'Abierto'])->count();
+        $docsFaltantes = $pedimentos->filter(fn($p) => !$p->cumplimiento_completo)->count();
+
+        $datos = [
+            'pedimentos' => $pedimentos->map(fn($p) => [
+                'numero_pedimento' => $p->numero_pedimento,
+                'cliente' => $p->cliente?->nombre ?? 'N/D',
+                'categoria' => $p->categoria,
+                'estado' => $p->estado,
+                'fecha_apertura' => $p->fecha_apertura?->format('d/m/Y') ?? 'N/D',
+                'cumplimiento_completo' => $p->cumplimiento_completo,
+                'documentos_pendientes' => $p->documentos_pendientes,
+            ])->toArray(),
+            'kpis' => [
+                'total' => $totalPedimentos,
+                'cumplidos' => $cumplidos,
+                'pendientes' => $pendientes,
+                'docs_faltantes' => $docsFaltantes,
+            ],
+            'filtros' => [
+                'desde' => $desde,
+                'hasta' => $hasta,
+                'numero_pedimento' => $numeroPedimento,
+                'estado' => $estado,
+                'categoria' => $categoria,
+            ],
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.pdf-pedimentos', compact('datos'));
+        $pdf->setPaper('letter', 'portrait');
+        return $pdf->download('reporte_pedimentos_' . now()->format('Y_m_d') . '.pdf');
+    }
 
 }
