@@ -131,6 +131,7 @@ Generación de métricas e inteligencia de negocio, controlados estrictamente po
   - **Reporte de Gerencia (`/reportes/gerencia`):** Tablero ejecutivo con los KPIs financieros y operativos de alto nivel para la toma de decisiones.
   - **Patrones de Cliente (`/reportes/patrones-cliente`):** Analítica avanzada sobre el comportamiento del cliente, frecuencias de despacho y tendencias operativas.
   - **Calendario de Primeras Operaciones (`/reportes/calendario-primeras-operaciones`):** Vista de calendario interactiva que resalta los hitos de las operaciones entrantes y planeadas.
+  - **Reporte de Pedimentos (`/reportes/pedimentos`):** Directorio completo de pedimentos con KPIs (Total, Cumplidos, Pendientes, Docs Faltantes), filtros por fecha, numero de pedimento, cliente, estado y categoria. Incluye modal de detalle con checklist de documentos faltantes, link directo al expediente y exportacion a PDF. (INC-035)
 - **Métodos Clave:**
   - `enviarMasivo()`: Envío por lotes de estados de cuenta o estatus operativos en formato PDF directamente al cliente final desde la plataforma.
 
@@ -766,3 +767,39 @@ Formato estándar para documentar mejoras y correcciones aplicadas:
 **Módulos pendientes:** Finanzas (7 vistas), Reportes (7 vistas), Cliente dashboards (4 vistas), Admin dashboards (4 vistas), Documentador (2 vistas), Expedientes legacy (3 vistas), Varios (8 vistas).
 
 **Estado:** Pendiente
+
+---
+
+### INC-035: Reporte de Pedimentos
+
+**Fecha:** 2026-05-28
+**Descripcion:** Se agrega un nuevo card en la seccion de reportes (`/reportes`) llamado "Reporte de Pedimentos" que permite visualizar, filtrar y exportar todos los pedimentos trabajados por el tenant. Incluye KPIs en tiempo real (Total, Cumplidos, Pendientes, Docs Faltantes), filtros por rango de fechas, numero de pedimento, cliente, estado y categoria, tabla de datos con tooltips de documentos faltantes, modal de detalle con checklist y link al expediente completo, y exportacion a PDF de la tabla completa.
+
+**Solucion Propuesta:**
+1. Registrar el reporte `pedimentos` en `Tenant::getAllAvailableReports()` con icono `fa-file-invoice`, color `blue`, status `active`.
+2. Agregar rutas `GET /reportes/pedimentos` (main view), `GET /reportes/pedimentos/pdf` (PDF) con middleware `report.access:pedimentos`.
+3. Agregar ruta API `GET /expedientes/{expediente}/documentos-pendientes` para el modal de detalle.
+4. Agregar entrada `'pedimentos' => 'reportes.pedimentos'` al `$routeMap` de la vista indice de reportes.
+5. Crear metodo `reportePedimentos()` en `ReporteController` con paginacion (15/pp), filtros condicionales y calculo de KPIs. Los KPIs de `cumplidos` y `pendientes` NO aplican el filtro `estado` del request para evitar contradicciones logicas.
+6. Crear metodo `reportePedimentosPdf()` en `ReporteController` que genera PDF via DomPDF con KPIs y tabla completa.
+7. Crear metodo `documentosPendientes()` en `ExpedienteController` que retorna JSON con los documentos pendientes (con validacion de tenant).
+8. Crear vista `reporte-pedimentos.blade.php` con KPIs, panel de filtros colapsable, tabla de datos, modal de detalle con fetch AJAX, y paginacion.
+9. Crear vista `pdf-pedimentos.blade.php` con DejaVu Sans, KPIs en header, tabla de pedimentos con badges de estado y docs faltantes.
+
+**Archivos Modificados:**
+- `app/Models/Tenant.php` — Agregado `pedimentos` en `getAllAvailableReports()`
+- `routes/web.php` — Agregadas 3 rutas
+- `resources/views/reportes/index.blade.php` — Agregado a `$routeMap`
+- `app/Http/Controllers/ReporteController.php` — Agregados `reportePedimentos()` y `reportePedimentosPdf()`
+- `app/Http/Controllers/ExpedienteController.php` — Agregado `documentosPendientes()`
+
+**Archivos Creados:**
+- `resources/views/reportes/reporte-pedimentos.blade.php` — Vista principal (420 lineas)
+- `resources/views/reportes/pdf-pedimentos.blade.php` — Template PDF (113 lineas)
+
+**Notas:**
+- Para que el card aparezca en `/reportes`, el super-admin debe habilitar el reporte `pedimentos` en las capacidades del tenant desde `/nexacore-admin/tenants/{tenant}/capabilities`.
+- El KPI `docsFaltantes` cuenta todos los registros coincidentes (no solo la pagina actual).
+- La validacion de cumplimiento usa los accesores `cumplimiento_completo` y `documentos_pendientes` del modelo `Expediente`.
+
+**Estado:** Cerrado
