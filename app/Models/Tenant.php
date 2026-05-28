@@ -154,6 +154,25 @@ class Tenant extends Model
     }
 
     /**
+     * Verifica si el tenant tiene habilitadas las notificaciones por WhatsApp.
+     * Controlado por el superadmin desde el panel de capabilities.
+     * 
+     * El tenant también debe tener una instancia de Evolution API conectada.
+     */
+    public function whatsappHabilitado(): bool
+    {
+        // Flag del superadmin en features_enabled
+        if (!$this->hasFeature('whatsapp_notifications')) {
+            return false;
+        }
+
+        // Debe tener instancia configurada y conectada
+        $evolutionConfig = $this->configuracion['evolution_api'] ?? [];
+        return !empty($evolutionConfig['instance'])
+            && !empty($evolutionConfig['connected']);
+    }
+
+    /**
      * Obtiene el límite de consultas del bot para este mes.
      */
     public function getBotConsultasLimite(): ?int
@@ -184,25 +203,38 @@ class Tenant extends Model
 
     /**
      * Incrementa el contador de consultas del bot.
+     * Usa JSON_SET en MySQL para operación atómica — evita race conditions.
      * 
      * @param int $cantidad Cantidad de consultas a agregar (default: 1)
      */
     public function incrementarBotConsultas(int $cantidad = 1): void
     {
-        $config = $this->getConfig();
         $periodoActual = now()->format('Y-m');
 
-        // Si es un nuevo mes, resetear el contador
-        $periodoAlmacenado = $config['bot']['consultas_mes_periodo'] ?? null;
+        // Obtener el periodo almacenado actual (necesario para ver si hay que resetear)
+        $periodoAlmacenado = $this->configuracion['bot']['consultas_mes_periodo'] ?? null;
+
         if ($periodoAlmacenado !== $periodoActual) {
-            $config['bot']['consultas_mes'] = 0;
-            $config['bot']['consultas_mes_periodo'] = $periodoActual;
+            // Reset: nuevo mes, reiniciar contador
+            $this->updateConfig('bot.consultas_mes', $cantidad);
+            $this->updateConfig('bot.consultas_mes_periodo', $periodoActual);
+        } else {
+            // Incremento atómico usando DB::raw sobre el JSON
+            DB::table('tenants')
+                ->where('id', $this->id)
+                ->update([
+                    'configuracion' => DB::raw("
+                        JSON_SET(
+                            configuracion,
+                            '$.bot.consultas_mes',
+                            COALESCE(JSON_EXTRACT(configuracion, '$.bot.consultas_mes'), 0) + {$cantidad}
+                        )
+                    "),
+                ]);
+
+            // Refrescar el modelo para tener el valor actualizado en memoria
+            $this->refresh();
         }
-
-        // Incrementar el contador
-        $config['bot']['consultas_mes'] = ($config['bot']['consultas_mes'] ?? 0) + $cantidad;
-
-        $this->update(['configuracion' => $config]);
     }
 
     /**
@@ -250,6 +282,175 @@ class Tenant extends Model
             'whatsapp_mes' => 0, // Implementar logging de WhatsApp
             default => 0,
         };
+    }
+
+    // ==========================================
+    // TRACKING DE CONSUMO (CORREOS, WHATSAPP)
+    // ==========================================
+
+    /**
+     * Verifica si el tenant puede enviar un correo hoy.
+     */
+    public function canSendCorreo(): bool
+    {
+        $limite = $this->getLimiteFuncionalidad('correos_dia');
+        if (!$limite) return true;
+        return $this->getCorreosUsadosHoy() < $limite;
+    }
+
+    /**
+     * Verifica si el tenant puede enviar un WhatsApp este mes.
+     */
+    public function canSendWhatsapp(): bool
+    {
+        $limite = $this->getLimiteFuncionalidad('whatsapp_mes');
+        if (!$limite) return true;
+        return $this->getWhatsappUsadosMes() < $limite;
+    }
+
+    /**
+     * Obtiene el límite de una funcionalidad específica.
+     */
+    public function getLimiteFuncionalidad(string $func): ?int
+    {
+        $config = $this->getConfig();
+        return $config['limites']['funcionalidades'][$func] ?? null;
+    }
+
+    /**
+     * Correos enviados hoy (contador en config JSON).
+     */
+    public function getCorreosUsadosHoy(): int
+    {
+        $config = $this->getConfig();
+        $hoy = now()->format('Y-m-d');
+        $fechaAlmacenada = $config['limites']['funcionalidades']['correos_dia_fecha'] ?? null;
+
+        if ($fechaAlmacenada !== $hoy) return 0;
+        return $config['limites']['funcionalidades']['correos_dia_count'] ?? 0;
+    }
+
+    /**
+     * WhatsApp enviados este mes.
+     */
+    public function getWhatsappUsadosMes(): int
+    {
+        $config = $this->getConfig();
+        $periodo = now()->format('Y-m');
+        $periodoAlmacenado = $config['limites']['funcionalidades']['whatsapp_mes_periodo'] ?? null;
+
+        if ($periodoAlmacenado !== $periodo) return 0;
+        return $config['limites']['funcionalidades']['whatsapp_mes_count'] ?? 0;
+    }
+
+    /**
+     * Incrementa el contador de correos del día.
+     */
+    public function incrementarConsumoCorreos(int $count = 1): void
+    {
+        $hoy = now()->format('Y-m-d');
+        $fechaAlmacenada = $this->configuracion['limites']['funcionalidades']['correos_dia_fecha'] ?? null;
+
+        if ($fechaAlmacenada !== $hoy) {
+            $this->updateConfig('limites.funcionalidades.correos_dia_count', $count);
+            $this->updateConfig('limites.funcionalidades.correos_dia_fecha', $hoy);
+        } else {
+            DB::table('tenants')->where('id', $this->id)->update([
+                'configuracion' => DB::raw("JSON_SET(configuracion, '$.limites.funcionalidades.correos_dia_count', COALESCE(JSON_EXTRACT(configuracion, '$.limites.funcionalidades.correos_dia_count'), 0) + {$count})"),
+            ]);
+            $this->refresh();
+        }
+    }
+
+    /**
+     * Incrementa el contador de WhatsApp del mes.
+     */
+    public function incrementarConsumoWhatsapp(int $count = 1): void
+    {
+        $periodo = now()->format('Y-m');
+        $periodoAlmacenado = $this->configuracion['limites']['funcionalidades']['whatsapp_mes_periodo'] ?? null;
+
+        if ($periodoAlmacenado !== $periodo) {
+            $this->updateConfig('limites.funcionalidades.whatsapp_mes_count', $count);
+            $this->updateConfig('limites.funcionalidades.whatsapp_mes_periodo', $periodo);
+        } else {
+            DB::table('tenants')->where('id', $this->id)->update([
+                'configuracion' => DB::raw("JSON_SET(configuracion, '$.limites.funcionalidades.whatsapp_mes_count', COALESCE(JSON_EXTRACT(configuracion, '$.limites.funcionalidades.whatsapp_mes_count'), 0) + {$count})"),
+            ]);
+            $this->refresh();
+        }
+    }
+
+    // ==========================================
+    // COLA DE PENDIENTES (cuando se excede límite)
+    // ==========================================
+
+    /**
+     * Agrega una notificación pendiente a la cola del tenant.
+     */
+    public function addPendingNotification(string $type, array $data): string
+    {
+        $config = $this->getConfig();
+        $id = uniqid('pend_', true);
+
+        $config['pending_notifications'][] = [
+            'id' => $id,
+            'type' => $type,
+            'data' => $data,
+            'created_at' => now()->toDateTimeString(),
+        ];
+
+        $this->update(['configuracion' => $config]);
+        return $id;
+    }
+
+    /**
+     * Obtiene notificaciones pendientes (opcionalmente filtradas por tipo).
+     */
+    public function getPendingNotifications(?string $type = null): array
+    {
+        $config = $this->getConfig();
+        $pendientes = $config['pending_notifications'] ?? [];
+
+        if ($type) {
+            $pendientes = array_filter($pendientes, fn($p) => $p['type'] === $type);
+        }
+
+        return array_values($pendientes);
+    }
+
+    /**
+     * Elimina una notificación pendiente por ID.
+     */
+    public function removePendingNotification(string $id): void
+    {
+        $config = $this->getConfig();
+        $config['pending_notifications'] = array_values(array_filter(
+            $config['pending_notifications'] ?? [],
+            fn($p) => $p['id'] !== $id
+        ));
+        $this->update(['configuracion' => $config]);
+    }
+
+    /**
+     * Elimina todas las notificaciones pendientes de un tipo.
+     */
+    public function clearPendingNotifications(string $type): void
+    {
+        $config = $this->getConfig();
+        $config['pending_notifications'] = array_values(array_filter(
+            $config['pending_notifications'] ?? [],
+            fn($p) => $p['type'] !== $type
+        ));
+        $this->update(['configuracion' => $config]);
+    }
+
+    /**
+     * Cuenta notificaciones pendientes (opcionalmente por tipo).
+     */
+    public function countPendingNotifications(?string $type = null): int
+    {
+        return count($this->getPendingNotifications($type));
     }
 
     /**
@@ -361,6 +562,13 @@ class Tenant extends Model
                 'icon' => 'fa-truck',
                 'color' => 'teal',
                 'status' => 'coming_soon',
+            ],
+            'pedimentos' => [
+                'name' => 'Reporte de Pedimentos',
+                'description' => 'Directorio completo de pedimentos y su estado de cumplimiento',
+                'icon' => 'fa-file-invoice',
+                'color' => 'blue',
+                'status' => 'active',
             ],
         ];
     }
@@ -526,7 +734,7 @@ class Tenant extends Model
                     'whatsapp_mes' => 0,
                 ],
             ],
-            'features_enabled' => ['basic_dashboard', 'email_notifications'],
+            'features_enabled' => ['email_notifications'],
         ];
 
         $this->configuracion = $config;
