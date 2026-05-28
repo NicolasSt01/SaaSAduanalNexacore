@@ -431,9 +431,102 @@
                         <label for="modal_clave_pedimento" class="block text-sm font-bold text-gray-700 mb-1">Clave Pedimento *</label>
                         <select id="modal_clave_pedimento" name="clave_pedimento" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-2 bg-white border" required>
                             <option value="">Seleccionar Clave</option>
-                            <option value="H1">H1</option>
-                            <option value="A1">A1</option>
-                            <option value="RT">RT</option>
+                            <optgroup label="Importaciones y Exportaciones Definitivas">
+                                <option value="A1">A1 — Importación y Exportación Definitiva</option>
+                                <option value="A3">A3 — Importación Definitiva virtual y Regularización</option>
+                                <option value="L1">L1 — Pequeña Importación y Exportación Definitiva</option>
+                                <option value="C1">C1 — Importación Definitiva a Región Fronteriza</option>
+                                <option value="D1">D1 — Sustitución de Importaciones Definitivas</option>
+                                <option value="C2">C2 — Importación Definitiva de Vehículos a Franja Fronteriza</option>
+                                <option value="K1">K1 — Retorno de Exportación Definitiva y Desistimiento</option>
+                                <option value="P1">P1 — Reexpedición Definitiva</option>
+                                <option value="T1">T1 — Importación y Exportación Definitiva (mensajería)</option>
+                                <option value="S1">S1 — Importación Definitiva de Insumos (Cuenta Aduanera)</option>
+                                <option value="S2">S2 — Importación Definitiva de Bienes mismo estado (Cuenta Aduanera)</option>
+                                <option value="S9">S9 — Reexpedición Temporal (Cuenta Aduanera)</option>
+                                <option value="V2">V2 — Transferencias (Cuenta Aduanera)</option>
+                                <option value="H1">H1 — Retorno al Extranjero de mercancía en su mismo estado</option>
+                                <option value="H8">H8 — Retorno de envases Exportados o Importados Temporalmente</option>
+                                <option value="BB">BB — Exportación Definitiva virtual</option>
+                                <option value="VU">VU — Importación Definitiva de Vehículos Usados</option>
+                            </optgroup>
+                            <optgroup label="Importaciones Temporales (Maquiladoras, PITEX, ECEX)">
+                                <option value="A2">A2 — Importación Temporal de bienes distintos a activo fijo (PITEX)</option>
+                                <option value="A6">A6 — Importación Temporal de Activo Fijo (PITEX)</option>
+                                <option value="J2">J2 — Retorno de Mercancías Elaboradas (PITEX)</option>
+                                <option value="H2">H2 — Importación Temporal de bienes (Maquiladoras)</option>
+                                <option value="H3">H3 — Importación Temporal de Activo Fijo (Maquiladoras)</option>
+                                <option value="J1">J1 — Retorno de Mercancías Elaboradas (Maquiladoras)</option>
+                                <option value="V1">V1 — Transferencias (Maquiladoras, PITEX o ECEX)</option>
+                                <option value="F4">F4 — Cambio de Régimen de Temporal a Definitiva (bienes)</option>
+                                <option value="F5">F5 — Cambio de Régimen de Temporal a Definitiva (Activo Fijo)</option>
+                                <option value="V5">V5 — Importación Definitiva y Exportación Virtual</option>
+                            </optgroup>
+                            <optgroup label="Temporales para Retornar en su Mismo Estado">
+                                <option value="BA">BA — Importación y Exportación Temporal para retornar</option>
+                                <option value="AJ">AJ — Importación/Exportación Temporal de Envases</option>
+                                <option value="BP">BP — Importación Temporal de Muestras y Muestrarios</option>
+                                <option value="V4">V4 — Exportación Virtual (Industria de Autopartes)</option>
+                                <option value="AD">AD — Importación Temporal para Convenciones y Congresos</option>
+                                <option value="BC">BC — Importación Temporal para Eventos Culturales/Deportivos</option>
+                                <option value="BF">BF — Exportación Temporal para Exposiciones/Convenciones</option>
+                                <option value="BM">BM — Exportación Temporal para Transformación/Reparación</option>
+                                <option value="BO">BO — Exportación Temporal y Retorno de Activo Fijo</option>
+                                <option value="BH">BH — Importación Temporal de contenedores, aviones, etc.</option>
+                                <option value="BD">BD — Importación Temporal de Equipo para Filmación</option>
+                                <option value="BE">BE — Importación de Vehículos de Prueba</option>
+                                <option value="BR">BR — Exportación Temporal de Mercancía fungible</option>
+                            </optgroup>
+                            <optgroup label="Depósito Fiscal en Almacén General">
+                                <option value="A4">A4 — Importación/Exportación a Depósito Fiscal (Almacén)</option>
+                                <option value="G1">G1 — Extracción para Importación o Exportación Definitiva</option>
+                                <option value="C3">C3 — Extracción de Depósito Fiscal (Franja Fronteriza)</option>
+                                <option value="K2">K2 — Extracción de Depósito Fiscal para Retorno</option>
+                                <option value="H4">H4 — Extracción para Importación Temporal Activo Fijo (Maq.)</option>
+                                <option value="H5">H5 — Extracción para Importación Temporal bienes (Maq.)</option>
+                                <option value="A7">A7 — Extracción para Importación Temporal Activo Fijo (PITEX)</option>
+                                <option value="A8">A8 — Extracción para Importación Temporal bienes (PITEX)</option>
+                                <option value="S3">S3 — Exportación de insumos (Cuenta Aduanera)</option>
+                                <option value="S4">S4 — Extracción con pago en Cuenta Aduanera</option>
+                            </optgroup>
+                            <optgroup label="Depósito Fiscal en Local Autorizado">
+                                <option value="A5">A5 — Importación a Depósito Fiscal (Exposiciones)</option>
+                                <option value="G2">G2 — Extracción para Importación Definitiva</option>
+                                <option value="K3">K3 — Extracción para retorno al extranjero</option>
+                                <option value="H6">H6 — Extracción para Importación Temporal Activo Fijo (Maq.)</option>
+                                <option value="H7">H7 — Extracción para Importación Temporal bienes (Maq.)</option>
+                                <option value="A9">A9 — Extracción para Importación Temporal Activo Fijo (PITEX)</option>
+                                <option value="AA">AA — Extracción para Importación Temporal de Insumos (PITEX)</option>
+                                <option value="S5">S5 — Exportación de Insumos (Cuenta Aduanera)</option>
+                                <option value="S6">S6 — Extracción con pago en Cuenta Aduanera</option>
+                                <option value="F2">F2 — Depósito Fiscal (Industria Automotriz)</option>
+                                <option value="V3">V3 — Transferencia (Industria Automotriz y PITEX)</option>
+                                <option value="F3">F3 — Extracción para Importación Definitiva (Ind. Automotriz)</option>
+                                <option value="I1">I1 — Retorno de Mercancías Elaboradas/Transformadas</option>
+                            </optgroup>
+                            <optgroup label="Depósito Fiscal para Exposición y Venta">
+                                <option value="F8">F8 — Depósito Fiscal exposición/venta mercancías nacionales</option>
+                                <option value="F9">F9 — Depósito Fiscal exposición/venta mercancías extranjeras</option>
+                                <option value="G6">G6 — Extracción exposición/venta mercancías nacionales</option>
+                                <option value="G7">G7 — Extracción exposición/venta mercancías extranjeras</option>
+                            </optgroup>
+                            <optgroup label="Recinto Fiscalizado">
+                                <option value="M1">M1 — Mercancías destinadas a Recinto Fiscalizado</option>
+                                <option value="M2">M2 — Maquinaria y Equipo para Recinto Fiscalizado</option>
+                                <option value="J3">J3 — Retorno al Extranjero de Insumos (Recinto Fiscalizado)</option>
+                            </optgroup>
+                            <optgroup label="Tránsitos">
+                                <option value="T3">T3 — Tránsito interno</option>
+                                <option value="T6">T6 — Tránsito internacional por territorio extranjero</option>
+                                <option value="T7">T7 — Tránsito internacional por territorio nacional</option>
+                                <option value="T8">T8 — Tránsito para el transbordo</option>
+                                <option value="R3">R3 — Rectificación a pedimento de tránsito</option>
+                            </optgroup>
+                            <optgroup label="Otros">
+                                <option value="RT">RT — Rectificación</option>
+                                <option value="R1">R1 — Rectificación de pedimentos</option>
+                                <option value="CT">CT — Pedimento complementario (Art. 303 TLCAN)</option>
+                            </optgroup>
                         </select>
                     </div>
 

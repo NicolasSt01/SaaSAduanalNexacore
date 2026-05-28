@@ -191,7 +191,7 @@ class ExpedienteController extends Controller
                 'fecha_pago_pedimento' => 'nullable|date',
                 'fecha_apertura' => 'required|date',
                 'fecha_cierre' => 'nullable|date',
-                'clave_pedimento' => 'required|in:H1,A1,RT',
+                'clave_pedimento' => 'required|in:A1,A2,A3,A4,A5,A6,A7,A8,A9,AA,AD,AJ,BA,BB,BC,BD,BE,BF,BH,BM,BO,BP,BR,C1,C2,C3,CT,D1,F2,F3,F4,F5,F8,F9,G1,G2,G6,G7,H1,H2,H3,H4,H5,H6,H7,H8,I1,J1,J2,J3,K1,K2,K3,L1,M1,M2,P1,R1,R3,RT,S1,S2,S3,S4,S5,S6,S9,T1,T3,T6,T7,T8,V1,V2,V3,V4,V5,VU',
             ]);
 
             // Definir valores por defecto
