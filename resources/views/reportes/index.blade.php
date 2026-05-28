@@ -82,6 +82,7 @@
                             'clientes_pdf' => 'reportes.cliente.mail',
                             'aduanas' => 'reportes.aduanas',
                             'patron_clientes' => 'reportes.patrones-cliente',
+                            'pedimentos' => 'reportes.pedimentos',
                             'financiero' => null, // Próximamente
                             'logistica' => null,  // Próximamente
                         ];
