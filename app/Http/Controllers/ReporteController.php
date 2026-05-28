@@ -3497,7 +3497,6 @@ class ReporteController extends Controller
             ->when($hasta, fn($q) => $q->whereDate('fecha_apertura', '<=', $hasta))
             ->when($numeroPedimento, fn($q) => $q->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%'))
             ->when($clienteId, fn($q) => $q->where('cliente_id', $clienteId))
-            ->when($estado, fn($q) => $q->where('estado', $estado))
             ->when($categoria, fn($q) => $q->where('categoria', $categoria))
             ->count();
 
@@ -3507,15 +3506,20 @@ class ReporteController extends Controller
             ->when($hasta, fn($q) => $q->whereDate('fecha_apertura', '<=', $hasta))
             ->when($numeroPedimento, fn($q) => $q->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%'))
             ->when($clienteId, fn($q) => $q->where('cliente_id', $clienteId))
-            ->when($estado, fn($q) => $q->where('estado', $estado))
             ->when($categoria, fn($q) => $q->where('categoria', $categoria))
             ->count();
 
+        $docsFaltantesQuery = Expediente::where('tenant_id', $tenantId);
+        if ($desde) $docsFaltantesQuery->whereDate('fecha_apertura', '>=', $desde);
+        if ($hasta) $docsFaltantesQuery->whereDate('fecha_apertura', '<=', $hasta);
+        if ($numeroPedimento) $docsFaltantesQuery->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%');
+        if ($clienteId) $docsFaltantesQuery->where('cliente_id', $clienteId);
+        if ($estado) $docsFaltantesQuery->where('estado', $estado);
+        if ($categoria) $docsFaltantesQuery->where('categoria', $categoria);
+
         $docsFaltantes = 0;
-        foreach ($pedimentos->items() as $pedimento) {
-            if (!$pedimento->cumplimiento_completo) {
-                $docsFaltantes++;
-            }
+        foreach ($docsFaltantesQuery->get() as $p) {
+            if (!$p->cumplimiento_completo) $docsFaltantes++;
         }
 
         return view('reportes.reporte-pedimentos', compact(
@@ -3573,9 +3577,20 @@ class ReporteController extends Controller
         $pedimentos = $query->orderByDesc('fecha_apertura')->get();
 
         $totalPedimentos = $pedimentos->count();
-        $cumplidos = $pedimentos->where('estado', 'Cerrado')->count();
-        $pendientes = $pedimentos->whereIn('estado', ['En proceso', 'Abierto'])->count();
-        $docsFaltantes = $pedimentos->filter(fn($p) => !$p->cumplimiento_completo)->count();
+
+        $kpiQuery = Expediente::where('tenant_id', $tenantId);
+        if ($desde) $kpiQuery->whereDate('fecha_apertura', '>=', $desde);
+        if ($hasta) $kpiQuery->whereDate('fecha_apertura', '<=', $hasta);
+        if ($numeroPedimento) $kpiQuery->where('numero_pedimento', 'like', '%' . $numeroPedimento . '%');
+        if ($clienteId) $kpiQuery->where('cliente_id', $clienteId);
+        if ($categoria) $kpiQuery->where('categoria', $categoria);
+
+        $cumplidos = (clone $kpiQuery)->where('estado', 'Cerrado')->count();
+        $pendientes = (clone $kpiQuery)->whereIn('estado', ['En proceso', 'Abierto'])->count();
+        $docsFaltantes = 0;
+        foreach ((clone $kpiQuery)->with(['operaciones.documentos'])->get() as $p) {
+            if (!$p->cumplimiento_completo) $docsFaltantes++;
+        }
 
         $datos = [
             'pedimentos' => $pedimentos->map(fn($p) => [
