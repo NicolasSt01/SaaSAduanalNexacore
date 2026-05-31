@@ -806,8 +806,8 @@ $stats = [
             ->where('tenant_id', $user->tenant_id)
             ->with(['cliente', 'importador', 'aduana', 'bodega', 'expediente']);
 
-        // Si NO hay búsqueda global, aplicar filtro de fecha por defecto (hoy en adelante)
-        if (!$request->filled('q')) {
+        // Si NO hay búsqueda global Y NO hay filtros de fecha manuales, aplicar filtro por defecto (hoy+)
+        if (!$request->filled('q') && !$request->filled('fecha_desde') && !$request->filled('fecha_hasta')) {
             $query->where(function ($q) use ($hoy) {
                 $q->whereDate('fecha_cruce_estimada', '>=', $hoy)
                     ->orWhereNull('fecha_cruce_estimada');
@@ -817,9 +817,7 @@ $stats = [
         // INC-020: Incluir operación específica por ID sin importar filtro de fecha (para notificaciones)
         if ($request->filled('op')) {
             $opId = (int) $request->input('op');
-            // Reemplazar el where de fecha: incluir hoy EN ADELANTE o la operación específica
-            if (!$request->filled('q')) {
-                // Reconstruir el query sin el filtro de fecha excluyente
+            if (!$request->filled('q') && !$request->filled('fecha_desde') && !$request->filled('fecha_hasta')) {
                 $query = Operacion::query()
                     ->where('tenant_id', $user->tenant_id)
                     ->with(['cliente', 'importador', 'aduana', 'bodega', 'expediente'])
@@ -828,10 +826,13 @@ $stats = [
                             ->orWhereNull('fecha_cruce_estimada')
                             ->orWhere('id', $opId);
                     });
+            } else {
+                // Si hay filtros de fecha o búsqueda, solo incluir la operación específica
+                $query->orWhere('id', $opId);
             }
         }
 
-        $query->whereIn('estado', ['capturada', 'pendiente', 'proceso', 'terminado', 'cancelada']);
+        $query->whereIn('estado', ['capturada', 'pendiente', 'proceso', 'en_proceso', 'completada', 'terminado', 'cancelada']);
 
         // Búsqueda global por texto (ignora fechas)
         if ($request->filled('q')) {
@@ -981,6 +982,11 @@ $stats = [
         }
 
         $operacion->save();
+
+        // Auto-completar: si ya tiene DODA + Pedimento y estaba pendiente/en_proceso → completada
+        if ($operacion->num_doda && $operacion->expediente_id && in_array($operacion->estado, ['pendiente', 'en_proceso', 'proceso'])) {
+            $operacion->update(['estado' => 'completada']);
+        }
 
         return response()->json(['success' => true, 'message' => 'Información actualizada correctamente.']);
     }
@@ -1414,6 +1420,73 @@ $stats = [
         ];
     }
 
+    // ==================== EDITAR OPERACIÓN (VISTA COMPLETA) ====================
 
+    /**
+     * Mostrar vista de edición completa de una operación.
+     * Protegido por tenant (BelongsToTenant scope en findOrFail).
+     */
+    public function editarOperacion($id)
+    {
+        $operacion = Operacion::with(['cliente', 'importador', 'aduana', 'patente', 'bodega', 'documentos', 'expediente'])
+            ->findOrFail($id);
+
+        $tenantId = $operacion->tenant_id;
+
+        $clientes = \App\Models\Cliente::where('tenant_id', $tenantId)->orderBy('nombre')->get();
+        $importadores = \App\Models\Importador::where('tenant_id', $tenantId)->orderBy('nombre')->get();
+        $aduanas = \App\Models\Aduana::orderBy('nombre')->get();
+        $patentes = \App\Models\Patente::where('tenant_id', $tenantId)->orderBy('numero')->get();
+        $bodegas = \App\Models\Bodega::where('tenant_id', $tenantId)->orderBy('nombre')->get();
+
+        // Pedimentos (expedientes) abiertos/en proceso del cliente, filtrados por tenant
+        $pedimentos = \App\Models\Expediente::where('tenant_id', $tenantId)
+            ->where('cliente_id', $operacion->cliente_id)
+            ->whereIn('estado', ['Abierto', 'En proceso'])
+            ->orderBy('numero_pedimento')
+            ->get();
+
+        $tiposTransaccionales = ['factura','encargo','transporte','empaque','origen','rrna','gastos','doda','cupo','val'];
+
+        return view('documentador.editar-operacion', compact(
+            'operacion', 'clientes', 'importadores', 'aduanas', 'patentes', 'bodegas',
+            'pedimentos', 'tiposTransaccionales'
+        ));
+    }
+
+    /**
+     * Actualizar un campo individual de una operación (AJAX).
+     */
+    public function actualizarCampoOperacion(Request $request, $id)
+    {
+        $operacion = Operacion::findOrFail($id);
+
+        $request->validate(['campo' => 'required|string', 'valor' => 'nullable|string']);
+
+        $campo = $request->campo;
+        $allowedFields = ['cliente_id','importador_id','nombre_producto','num_factura','referencia','num_thermo','codigo_alpha','aduana_id','patente_id','bodega_id','num_doda','fecha_cruce_estimada','modulacion','prioridad','estado','observaciones','expediente_id'];
+
+        if (!in_array($campo, $allowedFields)) {
+            return response()->json(['success' => false, 'message' => 'Campo no permitido.'], 403);
+        }
+
+        $updates = [$campo => $request->valor ?: null];
+
+        // Si cambia expediente_id, actualizar también aduana_id y patente_id
+        if ($campo === 'expediente_id' && $request->filled('aduana_id')) {
+            $updates['aduana_id'] = $request->aduana_id;
+            $updates['patente_id'] = $request->patente_id;
+        }
+
+        $operacion->update($updates);
+
+        // Auto-completar: si ya tiene DODA + Pedimento y estaba pendiente → completada
+        $operacion->refresh();
+        if ($operacion->num_doda && $operacion->expediente_id && in_array($operacion->estado, ['pendiente', 'en_proceso'])) {
+            $operacion->update(['estado' => 'completada']);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Campo actualizado.']);
+    }
 
 }

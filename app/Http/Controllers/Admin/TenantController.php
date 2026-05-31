@@ -283,7 +283,21 @@ class TenantController extends Controller
         ];
 
         // ==========================================
-        // 6. Guardar la configuración actualizada
+        // 6. Guardar plantilla WhatsApp personalizada
+        // ==========================================
+        if ($request->has('whatsapp_plantilla_custom_clear')) {
+            // Quitar plantilla personalizada
+            unset($config['evolution_api']['whatsapp_plantilla_custom']);
+        } elseif ($request->filled('whatsapp_plantilla_custom')) {
+            // Guardar plantilla personalizada
+            if (!isset($config['evolution_api'])) {
+                $config['evolution_api'] = [];
+            }
+            $config['evolution_api']['whatsapp_plantilla_custom'] = $request->whatsapp_plantilla_custom;
+        }
+
+        // ==========================================
+        // 7. Guardar la configuración actualizada
         // ==========================================
         $tenant->update(['configuracion' => $config]);
 

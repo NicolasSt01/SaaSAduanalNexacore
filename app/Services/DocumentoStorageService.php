@@ -63,8 +63,12 @@ class DocumentoStorageService
         $fileName = time() . '_' . uniqid() . '_' . $nombreOriginal . '.' . $extension;
         $path = $basePath . '/' . $fileName;
 
-        // Subir a R2
-        Storage::disk($this->disk)->put($path, file_get_contents($file));
+        // Subir a R2 usando stream (evita cargar archivo completo en memoria)
+        $stream = fopen($file->getPathname(), 'r');
+        Storage::disk($this->disk)->put($path, $stream);
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
 
         // Obtener URL pública
         $url = Storage::disk($this->disk)->url($path);

@@ -337,9 +337,13 @@
                         <div
                             class="hidden sm:-my-px sm:ml-8 sm:flex sm:space-x-4 overflow-x-auto no-scrollbar items-center">
                             @auth
-                                @if(in_array(auth()->user()->role, ['admin']) && in_array(auth()->user()->name, ['Admin CrossPoint', 'Ricardo Rodriguez', 'Alejandro']))
-                                    <a href="{{ route('admin.config') }}"
-                                        class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->is('admin/config*') ? 'border-indigo-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-bold transition">Configuración</a>
+                                <!--@if(in_array(auth()->user()->role, ['admin']) && in_array(auth()->user()->name, ['Admin CrossPoint', 'Ricardo Rodriguez', 'Alejandro']))
+                                                <a href="{{ route('admin.config') }}"
+                                                    class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->is('admin/config*') ? 'border-indigo-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-bold transition">Configuración</a>
+                                            @endif-->
+                                @if(in_array(auth()->user()->role, ['admin']))
+                                    <a href="{{ route('admin.admindashboard') }}"
+                                        class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->is('admin.admindashboard*') ? 'border-indigo-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-bold transition">Gerencia</a>
                                 @endif
 
                                 @if(in_array(strtolower(auth()->user()->role), ['admin', 'documentador']))
@@ -629,11 +633,11 @@
             function mostrarNotificacionesVacio() {
                 const notificationList = document.getElementById('notificationList');
                 notificationList.innerHTML = `
-                                            <div class="empty-notifications">
-                                                <i class="fas fa-bell-slash"></i>
-                                                <p class="mb-0">No hay notificaciones</p>
-                                            </div>
-                                        `;
+                                                        <div class="empty-notifications">
+                                                            <i class="fas fa-bell-slash"></i>
+                                                            <p class="mb-0">No hay notificaciones</p>
+                                                        </div>
+                                                    `;
             }
 
             // Función para mostrar las notificaciones en el dropdown
@@ -654,19 +658,19 @@
                     const mensaje = notificacion.mensaje || notificacion.descripcion || 'Sin mensaje';
 
                     html += `
-                                                <div class="notification-item ${isUnread ? 'unread' : ''}" 
-                                                     data-id="${notificacion.id}" 
-                                                     onclick="marcarComoLeida('${notificacion.id}', this)">
-                                                    <div class="notification-icon ${iconClass}">
-                                                        <i class="${getIcon(notificacion.tipo || 'info')}"></i>
-                                                    </div>
-                                                    <div class="notification-content">
-                                                        <div class="notification-title">${titulo}</div>
-                                                        <div class="notification-message">${mensaje}</div>
-                                                        <div class="notification-time">${timeAgo}</div>
-                                                    </div>
-                                                </div>
-                                            `;
+                                                            <div class="notification-item ${isUnread ? 'unread' : ''}" 
+                                                                 data-id="${notificacion.id}" 
+                                                                 onclick="marcarComoLeida('${notificacion.id}', this)">
+                                                                <div class="notification-icon ${iconClass}">
+                                                                    <i class="${getIcon(notificacion.tipo || 'info')}"></i>
+                                                                </div>
+                                                                <div class="notification-content">
+                                                                    <div class="notification-title">${titulo}</div>
+                                                                    <div class="notification-message">${mensaje}</div>
+                                                                    <div class="notification-time">${timeAgo}</div>
+                                                                </div>
+                                                            </div>
+                                                        `;
                 });
 
                 notificationList.innerHTML = html;
@@ -872,11 +876,11 @@
 
                 if (!notificaciones || notificaciones.length === 0) {
                     list.innerHTML = `
-                        <div class="p-6 text-center text-gray-400">
-                            <i class="fas fa-bell-slash text-3xl mb-2"></i>
-                            <p class="text-sm">No hay notificaciones</p>
-                        </div>
-                    `;
+                                    <div class="p-6 text-center text-gray-400">
+                                        <i class="fas fa-bell-slash text-3xl mb-2"></i>
+                                        <p class="text-sm">No hay notificaciones</p>
+                                    </div>
+                                `;
                     return;
                 }
 
@@ -895,23 +899,23 @@
                 };
 
                 list.innerHTML = notificaciones.map(notif => `
-                    <div class="p-4 border-b ${colores[notif.nivel] || colores['info']} hover:opacity-80 cursor-pointer"
-                         onclick="marcarLeida(${notif.id}, '${notif.fuente}')">
-                        <div class="flex items-start gap-3">
-                            <i class="fas ${notif.icono || iconos[notif.nivel] || iconos['info']} mt-0.5"></i>
-                            <div class="flex-1">
-                                <p class="text-sm font-bold text-gray-800">${notif.titulo}</p>
-                                <p class="text-xs text-gray-600 mt-1">${notif.mensaje}</p>
-                                ${notif.accion_url ? `
-                                    <a href="${notif.accion_url}" class="inline-block mt-2 text-xs font-bold text-indigo-600 hover:text-indigo-800">
-                                        ${notif.accion_texto || 'Ver más'} →
-                                    </a>
-                                ` : ''}
-                                <p class="text-xs text-gray-400 mt-1">${notif.created_at}</p>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
+                                <div class="p-4 border-b ${colores[notif.nivel] || colores['info']} hover:opacity-80 cursor-pointer"
+                                     onclick="marcarLeida(${notif.id}, '${notif.fuente}')">
+                                    <div class="flex items-start gap-3">
+                                        <i class="fas ${notif.icono || iconos[notif.nivel] || iconos['info']} mt-0.5"></i>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-bold text-gray-800">${notif.titulo}</p>
+                                            <p class="text-xs text-gray-600 mt-1">${notif.mensaje}</p>
+                                            ${notif.accion_url ? `
+                                                <a href="${notif.accion_url}" class="inline-block mt-2 text-xs font-bold text-indigo-600 hover:text-indigo-800">
+                                                    ${notif.accion_texto || 'Ver más'} →
+                                                </a>
+                                            ` : ''}
+                                            <p class="text-xs text-gray-400 mt-1">${notif.created_at}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
             }
 
             function marcarLeida(id, fuente = 'sistema') {

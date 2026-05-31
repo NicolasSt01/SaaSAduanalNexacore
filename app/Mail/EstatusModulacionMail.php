@@ -3,7 +3,6 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,56 +12,27 @@ class EstatusModulacionMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /**
-     * Create a new message instance.
-     */
-    public  $cliente;
-    public  $datosTramite;
-    public  $estatus;
+    public array $templateData;
+    protected string $templateView;
 
-
-
-    public function __construct($cliente, $datosTramite, $estatus)
+    public function __construct(string $templateView, array $templateData)
     {
-        $this->cliente = $cliente;          // Objeto cliente
-        $this->datosTramite = $datosTramite; // Arreglo con factura, carta porte, no. económico, no. alpha
-        $this->estatus = $estatus;          // Texto estatus: "Desaduanamiento Libre" o "Reconocimiento Aduanero"
-    }
-    
-    public function build()
-    {
-        return $this->subject('Actualización de Trámite - Crosspoint')
-                    ->view('emails.estatus_modulacion');
+        $this->templateView = $templateView;
+        $this->templateData = $templateData;
     }
 
-    /**
-     * Get the message envelope.
-     */
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Estatus Modulacion Mail',
+            subject: 'Actualización de Trámite - Crosspoint',
         );
     }
 
-    /**
-     * Get the message content definition.
-     */
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.estatus_modulacion',
+            view: $this->templateView,
+            with: $this->templateData,
         );
-    }
-    
-
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
-    public function attachments(): array
-    {
-        return [];
     }
 }

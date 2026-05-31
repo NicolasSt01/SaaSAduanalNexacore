@@ -18,10 +18,10 @@
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-            <!-- Lista de Operaciones -->
-            <div class="lg:col-span-2 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            <!-- Tabla (3/4 del ancho) -->
+            <div class="lg:col-span-3 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
                 style="min-height: 600px;">
                 <div class="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-700"><i class="fas fa-list-ul text-indigo-500 mr-2"></i>
@@ -129,10 +129,11 @@
             <!-- Sidebar (KPIs + Gráfica) -->
             <div class="flex flex-col gap-6">
                 <!-- Gráfica Modulaciones -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <h3 class="text-md font-bold text-gray-700 border-b pb-3 mb-4"><i
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+
+                    <h3 class="text-sm font-black text-gray-800 mb-3"><i
                             class="fas fa-traffic-light text-indigo-500 mr-2"></i> Monitor de Modulación</h3>
-                    <div class="relative h-64 w-full flex items-center justify-center">
+                    <div class="relative h-48 w-full flex items-center justify-center">
                         <canvas id="modulacionChart"></canvas>
                     </div>
                     <div class="flex justify-center gap-6 mt-4">
@@ -370,8 +371,10 @@
                 <div class="flex-1 overflow-y-auto p-0 flex flex-col lg:flex-row">
                     <!-- Left info -->
                     <div class="p-6 lg:w-1/2 border-r border-gray-100 space-y-5">
-                        <h4 class="text-base font-bold text-gray-800 border-b pb-2"><i
-                                class="fas fa-list-alt text-indigo-500 mr-2"></i> Información General</h4>
+                        <h4 class="text-base font-bold text-gray-800 border-b pb-2 flex items-center justify-between"><span><i
+                                class="fas fa-list-alt text-indigo-500 mr-2"></i> Información General</span>
+                            <a href="#" id="det_editar_link" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2 py-1 rounded font-bold transition border border-indigo-200">Ir a operación <i class="fas fa-external-link-alt ml-1"></i></a>
+                        </h4>
                         <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
                             <div class="col-span-2 sm:col-span-1">
                                 <span class="block text-xs font-bold text-gray-500 uppercase tracking-wide">Cliente</span>
@@ -439,54 +442,28 @@
                         <div class="flex justify-between items-center mb-4 border-b pb-3 border-gray-200 gap-4">
                             <h4 class="text-base font-bold text-gray-800 shrink-0"><i
                                     class="fas fa-folder-open text-indigo-500 mr-2"></i> Archivos Adjuntos</h4>
-                            <div class="flex-1 text-right">
-                                <input type="file" id="inlineFileInput" class="hidden"
-                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" onchange="uploadSingleFile(this)">
-                                <button type="button" onclick="openUploadWithType()"
-                                    class="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-1.5 rounded shadow-sm transition text-xs font-bold cursor-pointer">
-                                    <i class="fas fa-upload mr-1"></i> Subir Archivo
-                                </button>
-                            </div>
+                            <span id="uploadQueueCount" class="hidden text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"></span>
                         </div>
 
-                        <!-- Selector de tipo de documento para subida -->
-                        <div id="uploadTypeSelector" class="hidden mb-3 bg-white border border-indigo-200 rounded-xl p-4 shadow-sm">
-                            <label class="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2"> Tipo de Documento (Art. 36-A) </label>
-                            <select id="uploadTipoDocumento" class="w-full border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm p-2.5 font-medium">
-                                <optgroup label="Documentos del Art. 36-A (Maestros)">
-                                    <option value="acta">Acta Constitutiva</option>
-                                    <option value="poder">Poder Notarial</option>
-                                    <option value="identificacion">Identificación Oficial</option>
-                                    <option value="rfc">Constancia CSF (RFC)</option>
-                                    <option value="domicilio">Comprobante de Domicilio</option>
-                                </optgroup>
-                                <optgroup label="Documentos por Operación (Art. 36-A)">
-                                    <option value="factura" selected>Factura Comercial</option>
-                                    <option value="encargo">Encargo Conferido</option>
-                                    <option value="transporte">Documentos de Transporte</option>
-                                    <option value="empaque">Lista de Empaque</option>
-                                    <option value="origen">Certificado de Origen</option>
-                                    <option value="rrna">Cumplimiento RRNA's</option>
-                                    <option value="gastos">Gastos Incrementables</option>
-                                    <option value="doda">DODA / PITA</option>
-                                    <option value="cupo">Carta de Cupo</option>
-                                    <option value="val">Certificación de Valor</option>
-                                </optgroup>
-                                <optgroup label="Otros">
-                                    <option value="pedimento_pagado">Pedimento Pagado</option>
-                                    <option value="concepto_adicional">Concepto Adicional</option>
-                                    <option value="otros">Otros</option>
-                                </optgroup>
-                            </select>
-                            <div class="flex gap-2 mt-3">
-                                <button type="button" onclick="confirmUploadWithType()" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition text-xs font-bold cursor-pointer">
-                                    <i class="fas fa-check mr-1"></i> Confirmar y Seleccionar Archivo
-                                </button>
-                                <button type="button" onclick="cancelUploadWithType()" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 text-xs font-bold cursor-pointer transition">
-                                    Cancelar
-                                </button>
-                            </div>
+                        <!-- Drag & Drop Zone -->
+                        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 hover:bg-indigo-50/50 transition cursor-pointer mb-3"
+                            ondragover="event.preventDefault(); this.classList.add('border-indigo-500','bg-indigo-50')"
+                            ondragleave="this.classList.remove('border-indigo-500','bg-indigo-50')"
+                            ondrop="handleDrop(event)"
+                            onclick="document.getElementById('dragFileInput').click()">
+                            <input type="file" id="dragFileInput" class="hidden" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" onchange="handleFileSelect(this)">
+                            <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2 block"></i>
+                            <p class="text-sm font-bold text-gray-500">Arrastra archivos aquí</p>
+                            <p class="text-xs text-gray-400 mt-1">o haz clic para seleccionar</p>
                         </div>
+
+                        <!-- Cola de archivos pendientes de subir -->
+                        <div id="uploadQueue" class="hidden shrink-0 space-y-2 mb-3 max-h-48 overflow-y-auto bg-amber-50/50 rounded-lg p-2 border border-amber-200"></div>
+
+                        <!-- Botón de carga masiva -->
+                        <button id="btnUploadAll" onclick="uploadAllFiles()" class="hidden w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition mb-3">
+                            <i class="fas fa-cloud-upload-alt mr-1"></i> Cargar <span id="uploadAllCount">0</span> archivos
+                        </button>
 
                         <div id="details_files_list" class="space-y-3 overflow-y-auto pr-2 flex-1 relative min-h-[250px]">
                             <!-- Archivos cargados por js -->
@@ -903,7 +880,12 @@
         });
 
         function handleFiles(files) {
+            const maxSize = 50 * 1024 * 1024; // 50MB
             Array.from(files).forEach(file => {
+                if (file.size > maxSize) {
+                    alert(`"${file.name}" excede el límite de 50MB`);
+                    return;
+                }
                 filesToUpload.push({
                     file: file,
                     uid: Math.random().toString(36).substring(7),
@@ -1061,6 +1043,7 @@
             document.getElementById('det_alpha').innerText = op.alpha || 'N/A';
             document.getElementById('det_pedimento').innerText = op.pedimento || 'S/A';
             document.getElementById('det_doda').innerText = op.doda || 'S/A';
+            document.getElementById('det_editar_link').href = '{{ url("documentador/operacion") }}/' + opId + '/editar';
 
             // Cargar documentos bajo demanda vía API dedicada
             fetchModalDocuments(opId);
@@ -1135,55 +1118,152 @@
             list.innerHTML = html;
         }
 
-        function uploadSingleFile(input) {
-            if (!input.files || input.files.length === 0) return;
-            if (!currentDetailsOpId) return;
+        // ==========================================
+        // DRAG & DROP MULTI-ARCHIVOS
+        // ==========================================
+        let uploadQueue = [];
 
-            const file = input.files[0];
-            const tipoDocumento = document.getElementById('uploadTipoDocumento')?.value || 'otros';
-            const formData = new FormData();
-            formData.append('operacion_id', currentDetailsOpId);
-            formData.append('archivos[0]', file);
-            formData.append('tipos_documento[0]', tipoDocumento);
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('border-indigo-500','bg-indigo-50');
+            addFilesToQueue(e.dataTransfer.files);
+        }
 
-            input.disabled = true;
+        function handleFileSelect(input) {
+            if (input.files.length) addFilesToQueue(input.files);
+            input.value = '';
+        }
 
-            fetch('{{ route("documentos_operacion.store2") }}', {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                body: formData
-            })
-                .then(res => res.json())
-                .then(data => {
+        function addFilesToQueue(fileList) {
+            for (let file of fileList) {
+                const id = 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+                uploadQueue.push({ id, file, tipo: 'otros' });
+            }
+            renderUploadQueue();
+            // Scroll al top del modal para que la cola sea visible
+            const modalBody = document.querySelector('#detailsModal .overflow-y-auto');
+            if (modalBody) modalBody.scrollTop = 0;
+        }
+
+        function renderUploadQueue() {
+            const container = document.getElementById('uploadQueue');
+            const btn = document.getElementById('btnUploadAll');
+            const count = document.getElementById('uploadAllCount');
+            const qCount = document.getElementById('uploadQueueCount');
+
+            if (uploadQueue.length === 0) {
+                container.classList.add('hidden');
+                btn.classList.add('hidden');
+                qCount.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            btn.classList.remove('hidden');
+            qCount.classList.remove('hidden');
+            qCount.textContent = uploadQueue.length + ' pendiente(s)';
+            count.textContent = uploadQueue.length;
+
+            const tipoOpts = `<optgroup label="Documentos Art. 36-A (Operación)">
+                <option value="factura">Factura Comercial</option>
+                <option value="encargo">Encargo Conferido</option>
+                <option value="transporte">Documentos de Transporte</option>
+                <option value="empaque">Lista de Empaque</option>
+                <option value="origen">Certificado de Origen</option>
+                <option value="rrna">Cumplimiento RRNA's</option>
+                <option value="gastos">Gastos Incrementables</option>
+                <option value="doda">DODA / PITA</option>
+                <option value="cupo">Carta de Cupo</option>
+                <option value="val">Certificación de Valor</option>
+                </optgroup><optgroup label="Otros">
+                <option value="pedimento_pagado">Pedimento Pagado</option>
+                <option value="concepto_adicional">Concepto Adicional</option>
+                <option value="otros" selected>Otros</option>
+            </optgroup>`;
+
+            container.innerHTML = uploadQueue.map(f => `
+                <div class="flex items-center justify-between bg-white rounded-lg p-2.5 border border-gray-200 text-xs gap-2">
+                    <span class="font-bold text-gray-700 truncate flex-1" title="${f.file.name}">${f.file.name}</span>
+                    <span class="text-gray-400 text-[10px] whitespace-nowrap">${(f.file.size/1024).toFixed(0)} KB</span>
+                    <select onchange="updateQueueType('${f.id}', this.value)" class="text-[10px] border-gray-300 rounded p-1 w-28 shrink-0">
+                        ${tipoOpts}
+                    </select>
+                    <button onclick="removeFromQueue('${f.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('');
+
+            // Set default "otros" for each select
+            container.querySelectorAll('select').forEach(s => s.value = 'otros');
+        }
+
+        function updateQueueType(id, tipo) {
+            const item = uploadQueue.find(f => f.id === id);
+            if (item) item.tipo = tipo;
+        }
+
+        function removeFromQueue(id) {
+            uploadQueue = uploadQueue.filter(f => f.id !== id);
+            renderUploadQueue();
+        }
+
+        async function uploadAllFiles() {
+            if (!uploadQueue.length || !currentDetailsOpId) return;
+
+            const btn = document.getElementById('btnUploadAll');
+            btn.disabled = true;
+            btn.classList.add('opacity-75');
+
+            let successCount = 0;
+            let failCount = 0;
+            let errors = [];
+
+            for (let i = 0; i < uploadQueue.length; i++) {
+                const f = uploadQueue[i];
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Subiendo ${i + 1}/${uploadQueue.length}...`;
+
+                const formData = new FormData();
+                formData.append('operacion_id', currentDetailsOpId);
+                formData.append('archivos[0]', f.file);
+                formData.append('tipos_documento[0]', f.tipo);
+
+                try {
+                    const res = await fetch('{{ route("documentos_operacion.store2") }}', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                        body: formData
+                    });
+                    const txt = await res.text();
+                    let data;
+                    try { data = JSON.parse(txt); }
+                    catch(e) { throw new Error('Respuesta no JSON: ' + txt.substring(0, 200)); }
+
                     if (data.success) {
-                        fetchModalDocuments(currentDetailsOpId);
-                        fetchLiveData();
+                        successCount++;
                     } else {
-                        alert("Error al subir: " + (data.message || ''));
+                        failCount++;
+                        errors.push(`${f.name}: ${data.message || 'Error desconocido'}`);
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("Error al subir archivo.");
-                })
-                .finally(() => {
-                    input.disabled = false;
-                    input.value = '';
-                    document.getElementById('uploadTypeSelector').classList.add('hidden');
-                });
-        }
+                } catch (err) {
+                    failCount++;
+                    errors.push(`${f.name}: ${err.message}`);
+                }
+            }
 
-        function openUploadWithType() {
-            const selector = document.getElementById('uploadTypeSelector');
-            selector.classList.remove('hidden');
-        }
+            uploadQueue = [];
+            renderUploadQueue();
+            fetchModalDocuments(currentDetailsOpId);
+            fetchLiveData();
 
-        function cancelUploadWithType() {
-            document.getElementById('uploadTypeSelector').classList.add('hidden');
-        }
+            btn.disabled = false;
+            btn.classList.remove('opacity-75');
+            btn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-1"></i> Cargar <span id="uploadAllCount">0</span> archivos';
 
-        function confirmUploadWithType() {
-            document.getElementById('inlineFileInput').click();
+            let msg = `Subidos: ${successCount} exitosos`;
+            if (failCount > 0) {
+                msg += `, ${failCount} fallidos`;
+                if (errors.length) msg += '\n\nErrores:\n' + errors.join('\n');
+            }
+            alert(msg);
         }
 
         function deleteDocumentModal(docId) {

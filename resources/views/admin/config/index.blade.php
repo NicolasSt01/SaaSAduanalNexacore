@@ -302,6 +302,28 @@
             </div>
         </a>
 
+        <!-- WHATSAPP -->
+        @if(optional(auth()->user()->tenant)->hasFeature('whatsapp_notifications'))
+        <a href="{{ route('admin.config.whatsapp') }}"
+            class="group bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-xl hover:border-green-300 transition-all duration-300 relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1">
+            <div
+                class="absolute -right-6 -top-6 text-green-50 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                <i class="fab fa-whatsapp text-9xl"></i>
+            </div>
+            <div
+                class="bg-green-100 text-green-600 w-12 h-12 rounded-xl flex justify-center items-center text-xl mb-4 shadow-inner relative z-10">
+                <i class="fab fa-whatsapp"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800 relative z-10 group-hover:text-green-600 transition-colors">
+                WhatsApp</h3>
+            <p class="text-sm text-gray-500 mt-2 relative z-10 mb-4 flex-grow">Conecta tu número de WhatsApp para que el SOIA-Bot notifique automáticamente a tus clientes cuando sus operaciones cambien de estatus.</p>
+            <div
+                class="w-full bg-gray-50 p-2 rounded-lg border border-gray-100 text-center font-bold text-green-600 text-xs mt-auto relative z-10 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                Ingresar <i class="fas fa-arrow-right ml-1"></i>
+            </div>
+        </a>
+        @endif
+
     </div>
 </div>
 <!-- Tailwind CDN (si es necesario para recarga directa, omitelo si app ya lo incluye de build) -->

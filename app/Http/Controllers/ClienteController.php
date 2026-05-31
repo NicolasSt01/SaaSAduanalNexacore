@@ -84,7 +84,13 @@ class ClienteController extends Controller
                 $validated['tax_id'] = $validated['rfc'];
             }
 
-            //dd($validated);
+            $tenant = auth()->user()->tenant;
+            if (!$tenant->canAddResource('clientes')) {
+                $info = $tenant->getRecursoInfo('clientes');
+                return redirect()->back()->withInput()
+                    ->with('error', "Has alcanzado el límite de clientes ({$info['uso']}/{$info['limite']}). Contacta a tu administrador para aumentar tu límite.");
+            }
+
             Cliente::create($validated);
 
             return redirect()->route('clientes.index')

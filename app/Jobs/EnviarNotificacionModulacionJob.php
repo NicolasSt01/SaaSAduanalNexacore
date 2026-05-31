@@ -4,30 +4,17 @@ namespace App\Jobs;
 
 use Exception;
 use App\Models\Cliente;
+use App\Models\Operacion;
 use App\Models\Tenant;
 use App\Mail\EstatusModulacionMail;
 use App\Services\TenantMailService;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Foundation\Queue\Queueable;
 
-/**
- * EnviarNotificacionModulacionJob
- *
- * Job multi-tenant para envío de notificaciones de modulación.
- *
- * A diferencia del legacy EnviarCorreoModulacionJob:
- * - No tiene correos hardcodeados
- * - Usa el Directorio y la config del tenant para routing
- * - Recibe los destinatarios calculados por NotificacionModulacionService
- * - Soporta diferentes reglas por tenant/cliente
- * - Usa la configuración SMTP específica del tenant
- */
 class EnviarNotificacionModulacionJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -41,14 +28,8 @@ class EnviarNotificacionModulacionJob implements ShouldQueue
     public array $bcc;
     public string $executionId;
 
-    /**
-     * Intentos máximos del job
-     */
     public int $tries = 3;
 
-    /**
-     * Tiempo de espera entre reintentos (backoff en segundos)
-     */
     public function backoff(): array
     {
         return [10, 30, 60];
@@ -80,7 +61,6 @@ class EnviarNotificacionModulacionJob implements ShouldQueue
 
         try {
             $cliente = Cliente::withoutGlobalScope('tenant')->find($this->clienteId);
-
             if (!$cliente) {
                 Log::channel('doda_bot')->error("{$logPrefix} Cliente no encontrado", [
                     'cliente_id' => $this->clienteId,
@@ -91,104 +71,111 @@ class EnviarNotificacionModulacionJob implements ShouldQueue
             $tenant = Tenant::find($this->tenantId);
             $tenantNombre = $tenant->nombre_empresa ?? 'Desconocido';
 
+            $operacion = Operacion::withoutGlobalScope('tenant')
+                ->with(['expediente', 'aduana'])
+                ->find($this->operacionId);
+
+            // Determinar plantilla de correo del tenant
+            $config = $tenant->configuracion ?? [];
+            $templateName = $config['plantilla_correo_modulacion'] ?? null;
+            $usaTemplatePersonalizado = $templateName
+                && view()->exists("emails.modulacion.{$templateName}");
+
+            if ($usaTemplatePersonalizado) {
+                $templateView = "emails.modulacion.{$templateName}";
+            } else {
+                $templateView = 'emails.estatus_modulacion';
+            }
+
             Log::channel('doda_bot')->info("{$logPrefix} Procesando envío de correo", [
                 'cliente' => $cliente->nombre,
                 'tenant' => $tenantNombre,
                 'estatus' => $this->estatusTexto,
                 'destinatarios' => count($this->destinatarios),
                 'bcc' => count($this->bcc),
+                'template' => $templateView,
+                'usa_personalizado' => $usaTemplatePersonalizado,
             ]);
 
-            // Caso 1: Hay destinatarios del Directorio del cliente
+            // Caso 1: Hay destinatarios (directorio o fallback de cliente)
             if (!empty($this->destinatarios)) {
-                $emails = array_column($this->destinatarios, 'email');
-                $emailPrincipal = array_shift($emails);
+                foreach ($this->destinatarios as $destinatario) {
+                    $email = $destinatario['email'] ?? null;
+                    if (empty($email)) continue;
 
-                // Usar configuración SMTP del tenant
-                $enviado = TenantMailService::sendForTenant(
-                    $this->tenantId,
-                    $emailPrincipal,
-                    new EstatusModulacionMail(
+                    $nombreContacto = $destinatario['nombre'] ?? $cliente->nombre;
+
+                    $mailable = $this->buildMailable(
                         $cliente,
-                        $this->datosTramite,
-                        $this->estatusTexto
-                    )
-                );
+                        $tenant,
+                        $operacion,
+                        $nombreContacto,
+                        $templateView,
+                        $usaTemplatePersonalizado
+                    );
 
-                // Agregar CC y BCC si hay más destinatarios
-                if ($enviado) {
-                    if (!empty($emails)) {
-                        foreach ($emails as $ccEmail) {
-                            TenantMailService::sendForTenant(
-                                $this->tenantId,
-                                $ccEmail,
-                                new EstatusModulacionMail(
-                                    $cliente,
-                                    $this->datosTramite,
-                                    $this->estatusTexto
-                                )
-                            );
-                        }
-                    }
+                    $enviado = TenantMailService::sendForTenant(
+                        $this->tenantId,
+                        $email,
+                        $mailable
+                    );
 
-                    if (!empty($this->bcc)) {
-                        foreach ($this->bcc as $bccEmail) {
-                            TenantMailService::sendForTenant(
-                                $this->tenantId,
-                                $bccEmail,
-                                new EstatusModulacionMail(
-                                    $cliente,
-                                    $this->datosTramite,
-                                    $this->estatusTexto
-                                )
-                            );
-                        }
-                    }
+                    Log::channel('doda_bot')->info(
+                        $enviado
+                            ? "{$logPrefix} ✅ Correo enviado a {$email} ({$nombreContacto})"
+                            : "{$logPrefix} ❌ Fallo envío a {$email}",
+                        ['template' => $templateView]
+                    );
                 }
 
-                Log::channel('doda_bot')->info("{$logPrefix} ✅ Correo enviado a cliente + internos", [
-                    'to' => $emailPrincipal,
-                    'cc' => $emails,
-                    'bcc_count' => count($this->bcc),
-                ]);
+                // BCC: correos internos del tenant (sin personalizar nombre)
+                if (!empty($this->bcc)) {
+                    foreach ($this->bcc as $bccEmail) {
+                        if (empty($bccEmail)) continue;
 
-            }
-            // Caso 2: Solo correos internos del tenant (sin destinatarios del cliente)
-            elseif (!empty($this->bcc)) {
-                $bccEmails = $this->bcc;
-                $principal = array_shift($bccEmails);
+                        $mailableBcc = $this->buildMailable(
+                            $cliente,
+                            $tenant,
+                            $operacion,
+                            $cliente->nombre,
+                            $templateView,
+                            $usaTemplatePersonalizado
+                        );
 
-                $enviado = TenantMailService::sendForTenant(
-                    $this->tenantId,
-                    $principal,
-                    new EstatusModulacionMail(
-                        $cliente,
-                        $this->datosTramite,
-                        $this->estatusTexto
-                    )
-                );
-
-                if ($enviado && !empty($bccEmails)) {
-                    foreach ($bccEmails as $bccEmail) {
                         TenantMailService::sendForTenant(
                             $this->tenantId,
                             $bccEmail,
-                            new EstatusModulacionMail(
-                                $cliente,
-                                $this->datosTramite,
-                                $this->estatusTexto
-                            )
+                            $mailableBcc
                         );
                     }
                 }
+            }
+            // Caso 2: Solo correos internos del tenant
+            elseif (!empty($this->bcc)) {
+                foreach ($this->bcc as $bccEmail) {
+                    if (empty($bccEmail)) continue;
+
+                    $mailable = $this->buildMailable(
+                        $cliente,
+                        $tenant,
+                        $operacion,
+                        $cliente->nombre,
+                        $templateView,
+                        $usaTemplatePersonalizado
+                    );
+
+                    TenantMailService::sendForTenant(
+                        $this->tenantId,
+                        $bccEmail,
+                        $mailable
+                    );
+                }
 
                 Log::channel('doda_bot')->info("{$logPrefix} ✅ Correo enviado solo a internos", [
-                    'to' => $principal,
-                    'bcc_count' => count($bccEmails),
+                    'bcc_count' => count($this->bcc),
                 ]);
-
             }
-            // Caso 3: Sin destinatarios en absoluto
+            // Caso 3: Sin destinatarios
             else {
                 Log::channel('doda_bot')->warning("{$logPrefix} ⚠️ Sin destinatarios, correo no enviado", [
                     'cliente' => $cliente->nombre,
@@ -200,15 +187,60 @@ class EnviarNotificacionModulacionJob implements ShouldQueue
                 'error' => $e->getMessage(),
                 'attempt' => $this->attempts(),
             ]);
-
-            // Re-throw para que el queue system pueda reintentar
             throw $e;
         }
     }
 
     /**
-     * Handle a job failure after all retries
+     * Construir el Mailable con los datos apropiados según el template.
      */
+    protected function buildMailable(
+        Cliente $cliente,
+        Tenant $tenant,
+        ?Operacion $operacion,
+        string $nombreContacto,
+        string $templateView,
+        bool $usaPersonalizado
+    ): EstatusModulacionMail {
+        if ($usaPersonalizado) {
+            $viewData = [
+                'tenant_empresa' => $tenant->nombre_empresa ?? 'Agencia Aduanal',
+                'estatus' => $this->estatusTexto,
+                'contacto_nombre' => $nombreContacto,
+                'contacto_cliente' => $cliente->nombre,
+                'operacion' => $this->buildOperacionData($operacion),
+            ];
+        } else {
+            $viewData = [
+                'cliente' => $cliente,
+                'datosTramite' => $this->datosTramite,
+                'estatus' => $this->estatusTexto,
+            ];
+        }
+
+        return new EstatusModulacionMail($templateView, $viewData);
+    }
+
+    /**
+     * Construir el objeto $operacion que esperan las plantillas configurables.
+     */
+    protected function buildOperacionData(?Operacion $operacion): object
+    {
+        return (object) [
+            'factura' => $this->datosTramite['factura'] ?? null,
+            'nombre_producto' => $this->datosTramite['nombre_producto'] ?? null,
+            'expediente' => (object) [
+                'numero_pedimento' => $operacion->expediente->numero_pedimento ?? null,
+            ],
+            'aduana' => (object) [
+                'nombre' => $operacion->aduana->nombre ?? null,
+            ],
+            'fecha_pago' => $operacion->fecha_modulacion
+                ? $operacion->fecha_modulacion->format('Y-m-d H:i')
+                : date('Y-m-d H:i'),
+        ];
+    }
+
     public function failed(?\Throwable $exception): void
     {
         Log::channel('doda_bot')->critical("[JOB:FAILED][OP:{$this->operacionId}] Job falló definitivamente", [

@@ -36,6 +36,13 @@ class ImportadorController extends Controller
             'pais' => 'nullable|string|max:100',
         ]);
 
+        $tenant = auth()->user()->tenant;
+        if (!$tenant->canAddResource('importadores')) {
+            $info = $tenant->getRecursoInfo('importadores');
+            return redirect()->back()->withInput()
+                ->with('error', "Has alcanzado el límite de importadores ({$info['uso']}/{$info['limite']}). Contacta a tu administrador para aumentar tu límite.");
+        }
+
         Importador::create($request->all());
 
         return redirect()->route('importadores.index')

@@ -241,7 +241,7 @@ class TenantCapabilityService
                         'whatsapp_mes' => 0,
                     ],
                 ],
-                'features_enabled' => ['basic_dashboard'],
+                'features_enabled' => ['email_notifications'],
             ],
             'basico' => [
                 'bot' => [
@@ -268,7 +268,7 @@ class TenantCapabilityService
                         'whatsapp_mes' => 100,
                     ],
                 ],
-                'features_enabled' => ['basic_dashboard', 'email_notifications', 'basic_reports'],
+                'features_enabled' => ['email_notifications', 'whatsapp_notifications'],
             ],
             'profesional' => [
                 'bot' => [
@@ -295,7 +295,7 @@ class TenantCapabilityService
                         'whatsapp_mes' => 500,
                     ],
                 ],
-                'features_enabled' => ['basic_dashboard', 'email_notifications', 'advanced_reports', 'api_access', 'priority_support'],
+                'features_enabled' => ['email_notifications', 'whatsapp_notifications'],
             ],
             'enterprise' => [
                 'bot' => [
@@ -322,7 +322,7 @@ class TenantCapabilityService
                         'whatsapp_mes' => null,
                     ],
                 ],
-                'features_enabled' => ['basic_dashboard', 'email_notifications', 'advanced_reports', 'api_access', 'priority_support', 'white_label', 'custom_integrations', 'dedicated_support'],
+                'features_enabled' => ['email_notifications', 'whatsapp_notifications'],
             ],
             default => self::getDefaultConfigForPlan('basico'),
         };

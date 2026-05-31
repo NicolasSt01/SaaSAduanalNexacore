@@ -198,25 +198,61 @@ class NotificacionModulacionService
                 'doda' => $operacion->num_doda,
             ];
 
-            // Despachar Job de notificación
-            EnviarNotificacionModulacionJob::dispatch(
-                $operacion->id,
-                $operacion->tenant_id,
-                $cliente->id,
-                $datosTramite,
-                $estatusParaCliente,
-                $destinatarios,
-                $todoBcc,
-                $executionId
-            );
+            // Despachar Job de notificación EMAIL (síncrono para entrega inmediata)
+            // Verificar límite diario de correos
+            if (!$tenant->canSendCorreo()) {
+                $limite = $tenant->getLimiteFuncionalidad('correos_dia');
+                $uso = $tenant->getCorreosUsadosHoy();
+                $this->log('warning', "⏭ Límite diario de correos alcanzado ({$uso}/{$limite}). Guardando en pendientes.", [
+                    'operacion_id' => $operacion->id,
+                    'tenant_id' => $tenant->id,
+                    'destinatarios' => count($destinatarios),
+                ]);
 
-            $this->log('info', "✅ Job de notificación despachado", [
-                'execution_id' => $executionId,
-                'operacion_id' => $operacion->id,
-                'cliente' => $cliente->nombre,
-                'destinatarios' => count($destinatarios),
-                'bcc' => count($todoBcc),
-            ]);
+                // Guardar en cola de pendientes para reintento manual
+                $tenant->addPendingNotification('correo', [
+                    'operacion_id' => $operacion->id,
+                    'tenant_id' => $operacion->tenant_id,
+                    'cliente_id' => $cliente->id,
+                    'cliente_nombre' => $cliente->nombre,
+                    'datosTramite' => $datosTramite,
+                    'estatus' => $estatusParaCliente,
+                    'destinatarios' => $destinatarios,
+                    'bcc' => $todoBcc,
+                    'executionId' => $executionId,
+                ]);
+            } else {
+                dispatch_sync(new EnviarNotificacionModulacionJob(
+                    $operacion->id,
+                    $operacion->tenant_id,
+                    $cliente->id,
+                    $datosTramite,
+                    $estatusParaCliente,
+                    $destinatarios,
+                    $todoBcc,
+                    $executionId
+                ));
+
+                // Incrementar contador de correos
+                $tenant->incrementarConsumoCorreos();
+
+                $this->log('info', "✅ Job de notificación despachado", [
+                    'execution_id' => $executionId,
+                    'operacion_id' => $operacion->id,
+                    'cliente' => $cliente->nombre,
+                    'destinatarios' => count($destinatarios),
+                    'bcc' => count($todoBcc),
+                ]);
+            }
+
+            // Notificación WhatsApp (INC-025)
+            if ($tenant->whatsappHabilitado()) {
+                app(\App\Services\NotificacionWhatsAppService::class)->notificar(
+                    $operacion,
+                    $estatusParaCliente,
+                    $destinatarios
+                );
+            }
 
         } catch (Exception $e) {
             $this->log('error', "Error despachando notificación externa", [
@@ -250,7 +286,7 @@ class NotificacionModulacionService
             'doda' => $operacion->num_doda,
         ];
 
-        EnviarNotificacionModulacionJob::dispatch(
+        dispatch_sync(new EnviarNotificacionModulacionJob(
             $operacion->id,
             $operacion->tenant_id,
             $operacion->cliente_id,
@@ -259,7 +295,7 @@ class NotificacionModulacionService
             [], // Sin destinatarios del cliente
             $internos,
             $executionId
-        );
+        ));
     }
 
     /**
@@ -333,6 +369,25 @@ class NotificacionModulacionService
             ->where('recibe_notificaciones', true)
             ->get();
 
+        // Log diagnostico: cuantos contactos activos hay en total para este tenant+cliente
+        $todosContactos = DB::table('directorio')
+            ->where('tenant_id', $tenantId)
+            ->where('cliente_id', $clienteId)
+            ->get();
+
+        $this->log('info', "🔍 Directorio: encontrados {$contactos->count()} contactos aptos (activos+notif) de {$todosContactos->count()} totales", [
+            'tenant_id' => $tenantId,
+            'cliente_id' => $clienteId,
+            'aptos' => $contactos->count(),
+            'totales' => $todosContactos->count(),
+            'detalle_total' => $todosContactos->map(fn($c) => [
+                'nombre' => $c->nombre,
+                'correo' => $c->correo,
+                'activo' => $c->activo,
+                'recibe_notif' => $c->recibe_notificaciones,
+            ])->toArray(),
+        ]);
+
         if ($contactos->isNotEmpty()) {
             return $contactos->map(function ($contacto) {
                 return [
@@ -347,6 +402,11 @@ class NotificacionModulacionService
         }
 
         // Fallback: usar el correo del cliente directamente
+        $this->log('warning', "⚠️ Sin contactos en directorio, usando fallback a cliente.correo", [
+            'tenant_id' => $tenantId,
+            'cliente_id' => $clienteId,
+        ]);
+
         $cliente = DB::table('cliente')->find($clienteId);
         if ($cliente && !empty($cliente->correo)) {
             return [

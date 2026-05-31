@@ -53,12 +53,12 @@
                     </div>
                 </div>
                 <div class="shrink-0 text-right">
-                    @if($contacto->recibe_notificaciones)
-                        <span class="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-600 shadow-sm" title="Notificaciones Pendientes Mapeadas">
+                    @if($contacto->activo)
+                        <span class="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-600 shadow-sm" title="Activo - Recibe notificaciones">
                             <i class="fas fa-bell"></i>
                         </span>
                     @else
-                        <span class="flex items-center justify-center h-8 w-8 rounded-full bg-gray-100 text-gray-400 shadow-sm" title="Notificaciones Apagadas">
+                        <span class="flex items-center justify-center h-8 w-8 rounded-full bg-gray-100 text-gray-400 shadow-sm" title="Inactivo - Sin notificaciones">
                             <i class="fas fa-bell-slash"></i>
                         </span>
                     @endif
@@ -98,6 +98,18 @@
                         <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Correo</span>
                     @else
                         <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Ambos</span>
+                    @endif
+                </div>
+                <div class="mt-1 flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-500 uppercase">Estado:</span>
+                    @if($contacto->activo)
+                        <span class="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded border border-green-300">
+                            <i class="fas fa-check-circle mr-1"></i> Activo
+                        </span>
+                    @else
+                        <span class="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded border border-red-300">
+                            <i class="fas fa-times-circle mr-1"></i> Inactivo
+                        </span>
                     @endif
                 </div>
             </div>

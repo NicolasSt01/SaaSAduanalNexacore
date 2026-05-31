@@ -27,6 +27,13 @@ class BodegaController extends Controller
             'domicilio' => 'nullable|string'
         ]);
 
+        $tenant = auth()->user()->tenant;
+        if (!$tenant->canAddResource('bodegas')) {
+            $info = $tenant->getRecursoInfo('bodegas');
+            return redirect()->back()->withInput()
+                ->with('error', "Has alcanzado el límite de bodegas ({$info['uso']}/{$info['limite']}). Contacta a tu administrador para aumentar tu límite.");
+        }
+
         Bodega::create($validated);
 
         return redirect()->route('bodegas.index')

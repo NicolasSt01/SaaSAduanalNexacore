@@ -257,6 +257,96 @@ class DodaBotController extends Controller
         }
     }
 
+    // ==================== N8N SCHEDULER: BOT AUTOMÁTICO POR TENANT ====================
+
+    /**
+     * Listar tenants con bot en modo automático + info de créditos.
+     * GET /api/bot/doda/tenants-automaticos?token=xxx
+     */
+    public function tenantsAutomaticos(Request $request): JsonResponse
+    {
+        if (!$this->validarToken($request)) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $tenants = \App\Models\Tenant::where('estado', 'activo')->get()
+            ->filter(fn($t) => $t->getBotMode() === 'automatico')
+            ->map(function ($tenant) {
+                $limite = $tenant->getBotConsultasLimite();
+                $usadas = $tenant->getBotConsultasUsadas();
+                return [
+                    'id' => $tenant->id,
+                    'nombre' => $tenant->nombre_empresa,
+                    'bot_consultas_limite' => $limite,
+                    'bot_consultas_usadas' => $usadas,
+                    'bot_consultas_disponibles' => $limite ? max(0, $limite - $usadas) : null,
+                    'puede_consultar' => $tenant->canMakeBotConsulta(),
+                ];
+            })->values();
+
+        return response()->json([
+            'success' => true,
+            'total' => $tenants->count(),
+            'tenants' => $tenants,
+        ]);
+    }
+
+    /**
+     * Ejecutar bot para UN SOLO tenant con validación de créditos.
+     * POST /api/bot/doda/ejecutar-tenant/{tenantId}?token=xxx
+     */
+    public function ejecutarTenant(Request $request, $tenantId): JsonResponse
+    {
+        if (!$this->validarToken($request)) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        $tenant = \App\Models\Tenant::find($tenantId);
+        if (!$tenant) {
+            return response()->json(['success' => false, 'error' => 'Tenant no encontrado'], 404);
+        }
+
+        if ($tenant->getBotMode() !== 'automatico') {
+            return response()->json(['success' => false, 'skip' => true, 'reason' => 'modo_no_automatico']);
+        }
+
+        if (!$tenant->canMakeBotConsulta()) {
+            $limite = $tenant->getBotConsultasLimite();
+            $usadas = $tenant->getBotConsultasUsadas();
+            $this->logBot('warning', "⏭ Tenant {$tenant->nombre_empresa} sin créditos ({$usadas}/{$limite})");
+            return response()->json([
+                'success' => false, 'skip' => true, 'reason' => 'sin_creditos',
+                'tenant' => ['id' => $tenant->id, 'nombre' => $tenant->nombre_empresa],
+                'consultas_usadas' => $usadas, 'consultas_limite' => $limite,
+            ]);
+        }
+
+        $lockKey = 'doda_bot_running';
+        if (Cache::has($lockKey)) {
+            return response()->json(['success' => false, 'skip' => true, 'reason' => 'bot_ocupado'], 429);
+        }
+
+        $executionId = uniqid('doda_n8n_', true);
+        Cache::put($lockKey, ['execution_id' => $executionId, 'tenant_id' => $tenant->id, 'started_at' => now()->toIso8601String()], 600);
+
+        try {
+            $this->consultaService->setEjecucionManual(false);
+            $resultado = $this->consultaService->ejecutarConsultaMasiva();
+            Cache::forget($lockKey);
+
+            return response()->json([
+                'success' => true,
+                'tenant_id' => $tenant->id,
+                'total_consultadas' => $resultado['total_consultadas'],
+                'total_cambios' => $resultado['total_cambios'],
+                'duracion_segundos' => $resultado['duracion_segundos'],
+            ]);
+        } catch (\Exception $e) {
+            Cache::forget($lockKey);
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
     /**
      * Verificar el estado actual del bot.
      * Útil para que el job externo verifique si hay una ejecución en curso
@@ -478,6 +568,153 @@ class DodaBotController extends Controller
             Cache::forget($lockKey);
 
             $this->logBot('critical', '💀 Error crítico en rollover de fechas', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno del servidor',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Rollover diario de operaciones pendientes (sin DODA ni Pedimento).
+     *
+     * Se ejecuta a las 23:40 hora de México. Si una operación programada para hoy
+     * no tiene DODA ni Pedimento, su fecha se mueve al día siguiente para que no
+     * quede en el limbo y aparezca en el dashboard del día siguiente.
+     *
+     * POST /api/bot/doda/rollover-pendientes?token=xxx
+     */
+    public function rolloverOperacionesPendientes(Request $request): JsonResponse
+    {
+        // 1. Autenticación por token
+        if (!$this->validarToken($request)) {
+            $this->logAccesoNoAutorizado($request);
+            return response()->json([
+                'success' => false,
+                'error' => 'Unauthorized',
+                'message' => 'Token inválido o no proporcionado',
+            ], 401);
+        }
+
+        // 2. Protección anti-concurrencia
+        $lockKey = 'doda_pendientes_rollover_running';
+        if (Cache::has($lockKey)) {
+            $lockInfo = Cache::get($lockKey);
+            return response()->json([
+                'success' => false,
+                'error' => 'Rollover ya en ejecución',
+                'message' => 'Hay un proceso de rollover de pendientes en curso.',
+                'execution_id_actual' => $lockInfo['execution_id'] ?? null,
+            ], 429);
+        }
+
+        // 3. Adquirir lock (expira en 10 minutos como safety net)
+        $executionId = uniqid('rollover_pend_', true);
+        Cache::put($lockKey, [
+            'execution_id' => $executionId,
+            'started_at' => now()->toIso8601String(),
+            'ip' => $request->ip(),
+        ], 600);
+
+        try {
+            $this->logBot('info', '📅 Rollover de operaciones pendientes iniciado', [
+                'execution_id' => $executionId,
+                'ip' => $request->ip(),
+                'hora_local' => now('America/Mexico_City')->format('Y-m-d H:i:s'),
+            ]);
+
+            // 4. Buscar operaciones de hoy sin DODA ni Pedimento
+            $hoy = now()->startOfDay();
+            $manana = $hoy->copy()->addDay();
+
+            $operacionesPendientes = \App\Models\Operacion::withoutGlobalScope('tenant')
+                ->whereDate('fecha_cruce_estimada', $hoy)
+                ->where(function ($q) {
+                    $q->whereNull('num_doda')
+                        ->orWhere('num_doda', '')
+                        ->orWhereNull('num_pedimento')
+                        ->orWhere('num_pedimento', '');
+                })
+                ->get();
+
+            $this->logBot('info', '📋 Operaciones pendientes encontradas para rollover', [
+                'total' => $operacionesPendientes->count(),
+                'fecha_origen' => $hoy->format('Y-m-d'),
+                'fecha_destino' => $manana->format('Y-m-d'),
+            ]);
+
+            // 5. Actualizar fechas al día siguiente
+            $actualizadas = [];
+            $errores = [];
+
+            foreach ($operacionesPendientes as $operacion) {
+                try {
+                    $operacion->update([
+                        'fecha_cruce_estimada' => $manana,
+                    ]);
+
+                    $actualizadas[] = [
+                        'id' => $operacion->id,
+                        'referencia' => $operacion->referencia,
+                        'cliente' => $operacion->cliente?->nombre ?? 'N/A',
+                        'fecha_anterior' => $hoy->format('Y-m-d'),
+                        'fecha_nueva' => $manana->format('Y-m-d'),
+                        'faltante' => implode(', ', array_filter([
+                            empty($operacion->num_doda) ? 'DODA' : null,
+                            empty($operacion->num_pedimento) ? 'Pedimento' : null,
+                        ])),
+                    ];
+
+                    $this->logBot('info', "📅 Operación #{$operacion->id} movida a mañana", [
+                        'referencia' => $operacion->referencia,
+                        'fecha_anterior' => $hoy->format('Y-m-d'),
+                        'fecha_nueva' => $manana->format('Y-m-d'),
+                    ]);
+
+                } catch (Exception $e) {
+                    $errores[] = [
+                        'id' => $operacion->id,
+                        'referencia' => $operacion->referencia,
+                        'error' => $e->getMessage(),
+                    ];
+
+                    $this->logBot('error', "❌ Error en rollover de operación #{$operacion->id}", [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // 6. Liberar lock
+            Cache::forget($lockKey);
+
+            $this->logBot('info', '✅ Rollover de pendientes completado', [
+                'total_actualizadas' => count($actualizadas),
+                'total_errores' => count($errores),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'execution_id' => $executionId,
+                'fecha_ejecucion' => now()->toIso8601String(),
+                'hora_mexico' => now('America/Mexico_City')->format('Y-m-d H:i:s'),
+                'fecha_origen' => $hoy->format('Y-m-d'),
+                'fecha_destino' => $manana->format('Y-m-d'),
+                'total_actualizadas' => count($actualizadas),
+                'total_errores' => count($errores),
+                'operaciones_actualizadas' => $actualizadas,
+                'errores' => $errores,
+            ], 200);
+
+        } catch (Exception $e) {
+            Cache::forget($lockKey);
+
+            $this->logBot('critical', '💀 Error crítico en rollover de pendientes', [
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),

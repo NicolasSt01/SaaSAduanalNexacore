@@ -340,14 +340,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         @php
                             $availableFeatures = [
-                                'basic_dashboard' => '📊 Dashboard Básico',
                                 'email_notifications' => '📧 Notificaciones por Email',
-                                'advanced_reports' => '📈 Reportes Avanzados',
-                                'api_access' => '🔌 Acceso API',
-                                'priority_support' => '🎯 Soporte Prioritario',
-                                'white_label' => '🏷️ White Label',
-                                'custom_integrations' => '🔧 Integraciones Personalizadas',
-                                'dedicated_support' => '👤 Soporte Dedicado',
+                                'whatsapp_notifications' => '💬 Notificaciones por WhatsApp',
                             ];
                         @endphp
 
@@ -359,6 +353,52 @@
                             <span class="text-sm font-bold text-gray-700">{{ $label }}</span>
                         </label>
                         @endforeach
+                    </div>
+                </div>
+
+                <!-- Plantilla WhatsApp Personalizada (Superadmin) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-purple-100 p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 text-lg">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-800">Plantilla WhatsApp Personalizada</h2>
+                            <p class="text-xs text-gray-400">Formato de mensaje personalizado para notificaciones de modulación</p>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-gray-600 mb-3">
+                        <i class="fas fa-info-circle text-purple-500 mr-1"></i>
+                        Si se configura, esta plantilla <strong>reemplaza</strong> las 3 básicas (Breve, Detallado, Corporativo).
+                        Usa los siguientes placeholders:
+                    </p>
+
+                    <div class="bg-gray-50 rounded-xl p-3 mb-4 text-xs font-mono text-gray-600 space-y-1">
+                        <div><code class="text-purple-600">@{{operacion.modulacion}}</code> — Estatus detectado (ej. "DESADUANAMIENTO LIBRE")</div>
+                        <div><code class="text-purple-600">@{{operacion.factura}}</code> — Número de factura</div>
+                        <div><code class="text-purple-600">@{{operacion.referencia}}</code> — Referencia del cliente</div>
+                        <div><code class="text-purple-600">@{{operacion.producto}}</code> — Nombre del producto</div>
+                        <div><code class="text-purple-600">@{{operacion.thermo}}</code> — Número económico</div>
+                        <div><code class="text-purple-600">@{{operacion.doda}}</code> — Número de DODA</div>
+                        <div><code class="text-purple-600">@{{operacion.fecha}}</code> — Fecha de modulación</div>
+                        <div><code class="text-purple-600">@{{tenant.nombre}}</code> — Nombre de la agencia</div>
+                        <div><code class="text-purple-600">@{{destinatario.nombre}}</code> — Nombre del contacto</div>
+                        <div><code class="text-purple-600">@{{emoji}}</code> — ✅ para libre, ⚠️ para otros estados</div>
+                    </div>
+
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Texto de la Plantilla</label>
+                    <textarea name="whatsapp_plantilla_custom" rows="8"
+                        class="w-full rounded-xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 border shadow-sm bg-gray-50/50 font-mono text-sm"
+                        placeholder="Ejemplo:&#10;{emoji} *Actualizacion - {tenant.nombre}*&#10;&#10;Factura: {operacion.factura}&#10;Estado: {operacion.modulacion} {emoji}&#10;Producto: {operacion.producto}&#10;&#10;{tenant.nombre}"
+                    >{{ $config['evolution_api']['whatsapp_plantilla_custom'] ?? '' }}</textarea>
+
+                    <div class="flex items-center gap-3 mt-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="whatsapp_plantilla_custom_clear" value="1"
+                                class="w-4 h-4 text-red-500 rounded focus:ring-red-500">
+                            <span class="text-xs text-red-600 font-bold">Quitar plantilla personalizada (volver a plantillas básicas)</span>
+                        </label>
                     </div>
                 </div>
 

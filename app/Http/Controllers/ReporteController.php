@@ -11,6 +11,7 @@ use App\Models\Expediente;
 use App\Models\ConceptoAdicional;
 use App\Models\Aduana;
 use App\Models\Documento;
+use App\Services\PngChartService;
 
 class ReporteController extends Controller
 {
@@ -827,9 +828,10 @@ class ReporteController extends Controller
         ];
 
         try {
-            $charts = $this->generarChartUrlsPdfCompleto($datos);
+            $chartService = new PngChartService();
+            $charts = $this->generarChartsPng($datos, $chartService);
         } catch (\Throwable $e) {
-            \Log::warning('Error generando charts SVG', ['error' => $e->getMessage()]);
+            \Log::warning('Error generando charts PNG', ['error' => $e->getMessage()]);
             $charts = [];
         }
 
@@ -838,56 +840,39 @@ class ReporteController extends Controller
         return $pdf->download('reporte_' . str_replace(' ', '_', $cliente->nombre) . '.pdf');
     }
 
-    private function generarChartUrlsPdfCompleto(array $datos): array
+    private function generarChartsPng(array $datos, PngChartService $chart): array
     {
-        $urls = [];
-
-        $quickChart = function (array $config, int $w = 220, int $h = 140): ?string {
-            $config['width'] = $w; $config['height'] = $h;
-            $config['backgroundColor'] = 'white'; $config['devicePixelRatio'] = 1;
-            $config['format'] = 'png';
-            try {
-                $json = json_encode($config);
-                if (strlen($json) > 8000) { return null; }
-                $url = 'https://quickchart.io/chart?c=' . urlencode($json);
-                $ctx = stream_context_create(['http' => ['timeout' => 10, 'user_agent' => 'NexaCore/1.0']]);
-                $png = @file_get_contents($url, false, $ctx);
-                if ($png === false || strlen($png) < 100 || strlen($png) > 150000) { return null; }
-                return 'data:image/png;base64,' . base64_encode($png);
-            } catch (\Throwable $e) { return null; }
-        };
-
+        $charts = [];
         $stats = $datos['estadisticas'];
+        $meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-        $urls['greensReds'] = $quickChart([
-            'type' => 'doughnut', 'data' => ['labels' => ['Verdes', 'Rojos'], 'datasets' => [['data' => [$stats['greens'], $stats['reds']], 'backgroundColor' => ['#28a745','#dc3545'], 'borderWidth' => 0]]],
-            'options' => ['plugins' => ['legend' => ['display' => true, 'position' => 'bottom', 'labels' => ['font' => ['size' => 10]]]]]
-        ], 220, 140);
+        $charts['greensReds'] = $chart->doughnut([
+            ['label' => 'Desaduanamiento Libre', 'value' => (int)$stats['greens'], 'color' => '#1a7a3a'],
+            ['label' => 'Reconocimiento Aduanero', 'value' => (int)$stats['reds'], 'color' => '#b91c1c'],
+        ], 300, 260);
 
         if (!empty($datos['porAduana'])) {
-            $urls['aduanas'] = $quickChart([
-                'type' => 'doughnut', 'data' => ['labels' => array_column($datos['porAduana'], 'nombre'), 'datasets' => [['data' => array_column($datos['porAduana'], 'total'), 'backgroundColor' => ['#1e3a5f','#1a7a3a','#b8860b','#b91c1c','#0e7490','#6f42c1','#d946ef','#f97316'], 'borderWidth' => 0]]],
-                'options' => ['plugins' => ['legend' => ['display' => true, 'position' => 'right', 'labels' => ['font' => ['size' => 7], 'padding' => 3, 'boxWidth' => 6]]]]
-            ], 220, 140);
+            $slices = [];
+            $colors = ['#1e3a5f','#1a7a3a','#b8860b','#b91c1c','#0e7490','#6f42c1','#d946ef','#f97316'];
+            foreach ($datos['porAduana'] as $i => $a) {
+                $slices[] = ['label' => $a['nombre'], 'value' => (int)$a['total'], 'color' => $colors[$i % count($colors)]];
+            }
+            $charts['aduanas'] = $chart->doughnut($slices, 340, 320);
         }
 
         if (!empty($datos['historialMeses'])) {
             $mv = [];
             for ($i = 1; $i <= 12; $i++) { $mv[] = (int)($datos['historialMeses'][$i] ?? 0); }
-            $urls['historico'] = $quickChart([
-                'type' => 'line', 'data' => ['labels' => ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], 'datasets' => [['data' => $mv, 'borderColor' => '#1e3a5f', 'backgroundColor' => 'rgba(30,58,95,0.08)', 'fill' => true, 'tension' => 0.4, 'borderWidth' => 1.5, 'pointRadius' => 2, 'pointBackgroundColor' => '#1e3a5f']]],
-                'options' => ['scales' => ['y' => ['beginAtZero' => true]], 'plugins' => ['legend' => ['display' => false]]]
-            ], 340, 130);
+            $charts['historico'] = $chart->lineChart([
+                ['label' => 'Operaciones', 'color' => '#1e3a5f', 'data' => $mv],
+            ], $meses, 520, 230);
         }
 
         if (!empty($datos['tendenciaVerdes'])) {
-            $urls['tendencia'] = $quickChart([
-                'type' => 'line', 'data' => ['labels' => ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], 'datasets' => [
-                    ['label' => 'Verdes', 'data' => $datos['tendenciaVerdes'], 'borderColor' => '#1a7a3a', 'backgroundColor' => 'rgba(26,122,58,0.08)', 'fill' => true, 'tension' => 0.4, 'borderWidth' => 1.5, 'pointRadius' => 2],
-                    ['label' => 'Rojos', 'data' => $datos['tendenciaRojos'], 'borderColor' => '#b91c1c', 'backgroundColor' => 'rgba(185,28,28,0.08)', 'fill' => true, 'tension' => 0.4, 'borderWidth' => 1.5, 'pointRadius' => 2],
-                ]],
-                'options' => ['scales' => ['y' => ['beginAtZero' => true]], 'plugins' => ['legend' => ['display' => true, 'labels' => ['font' => ['size' => 8]]]]]
-            ], 340, 130);
+            $charts['tendencia'] = $chart->lineChart([
+                ['label' => 'Verdes', 'color' => '#1a7a3a', 'data' => $datos['tendenciaVerdes']],
+                ['label' => 'Rojos', 'color' => '#b91c1c', 'data' => $datos['tendenciaRojos']],
+            ], $meses, 520, 230);
         }
 
         if (!empty($datos['porPatente'])) {
@@ -897,29 +882,31 @@ class ReporteController extends Controller
                 $pvd[] = (int)($datos['verdesPorPatente'][$p] ?? 0);
                 $prd[] = (int)($datos['rojosPorPatente'][$p] ?? 0);
             }
-            $urls['patentes'] = $quickChart([
-                'type' => 'bar', 'data' => ['labels' => $pn, 'datasets' => [['label' => 'Verdes', 'data' => $pvd, 'backgroundColor' => '#1a7a3a'], ['label' => 'Rojos', 'data' => $prd, 'backgroundColor' => '#b91c1c']]],
-                'options' => ['scales' => ['y' => ['beginAtZero' => true, 'stacked' => true], 'x' => ['stacked' => true]], 'plugins' => ['legend' => ['display' => true, 'labels' => ['font' => ['size' => 8]]]]]
-            ], 280, 130);
+            $charts['patentes'] = $chart->barChart([
+                ['label' => 'Verdes', 'color' => '#1a7a3a', 'data' => $pvd, 'stacked' => true],
+                ['label' => 'Rojos', 'color' => '#b91c1c', 'data' => $prd, 'stacked' => true],
+            ], $pn, 460, 240);
         }
 
         if (!empty($datos['topImportadores'])) {
-            $il = array_slice(array_column($datos['topImportadores'], 'importador'), 0, 8);
-            $id = array_slice(array_column($datos['topImportadores'], 'total'), 0, 8);
-            $urls['importadores'] = $quickChart([
-                'type' => 'bar', 'data' => ['labels' => $il, 'datasets' => [['data' => $id, 'backgroundColor' => '#1e3a5f']]],
-                'options' => ['indexAxis' => 'y', 'scales' => ['y' => ['beginAtZero' => true]], 'plugins' => ['legend' => ['display' => false]]]
-            ], 250, 150);
+            $bars = [];
+            $importadores = array_slice($datos['topImportadores'], 0, 8);
+            foreach ($importadores as $i => $imp) {
+                $bars[] = ['label' => $imp['importador'], 'value' => (int)$imp['total'], 'color' => '#1e3a5f'];
+            }
+            $charts['importadores'] = $chart->horizontalBar($bars, 420, 240);
         }
 
         if (!empty($datos['porBodega'])) {
-            $urls['bodegas'] = $quickChart([
-                'type' => 'doughnut', 'data' => ['labels' => array_column($datos['porBodega'], 'nombre'), 'datasets' => [['data' => array_column($datos['porBodega'], 'total'), 'backgroundColor' => ['#1e3a5f','#f97316','#1a7a3a','#b91c1c','#0e7490'], 'borderWidth' => 0]]],
-                'options' => ['plugins' => ['legend' => ['display' => true, 'position' => 'bottom', 'labels' => ['font' => ['size' => 7], 'padding' => 2]]]]
-            ], 180, 130);
+            $slices = [];
+            $colors = ['#1e3a5f','#f97316','#1a7a3a','#b91c1c','#0e7490'];
+            foreach ($datos['porBodega'] as $i => $b) {
+                $slices[] = ['label' => $b['nombre'], 'value' => (int)$b['total'], 'color' => $colors[$i % count($colors)]];
+            }
+            $charts['bodegas'] = $chart->doughnut($slices, 320, 280);
         }
 
-        return array_filter($urls);
+        return array_filter($charts);
     }
     public function operacionesDiarias_old(Request $request)
     {

@@ -272,6 +272,163 @@
                 </div>
             </div>
 
+            <!-- #4: Patente Aduanal Distribution -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span> Distribución por Patente Aduanal
+                    </h3>
+                    <div class="h-64 mb-4">
+                        <canvas id="patentesChart"></canvas>
+                    </div>
+                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                        @foreach($porPatente as $p)
+                        <div class="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-black text-gray-400">#{{ $loop->iteration }}</span>
+                                <div>
+                                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300 block">{{ $p->nombre }}</span>
+                                    <span class="text-[10px] text-gray-400">Pat. {{ $p->numero }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">{{ $verdesPorPatente[$p->nombre] ?? 0 }}V</span>
+                                <span class="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-900/30 px-1.5 py-0.5 rounded">{{ $rojosPorPatente[$p->nombre] ?? 0 }}R</span>
+                                <span class="text-xs font-black text-purple-600 dark:text-purple-400 bg-white dark:bg-gray-800 px-2 py-1 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm">{{ $p->total }}</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- #5: Top Importadores -->
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-cyan-500 rounded-full"></span> Top Importadores
+                    </h3>
+                    <div class="h-64 mb-4">
+                        <canvas id="importadoresChart"></canvas>
+                    </div>
+                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                        @foreach($porImportador as $imp)
+                        <div class="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-black text-gray-400">#{{ $loop->iteration }}</span>
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ $imp->nombre }}</span>
+                            </div>
+                            <span class="text-xs font-black text-cyan-600 dark:text-cyan-400 bg-white dark:bg-gray-800 px-2 py-1 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm">{{ $imp->total }}</span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <!-- #6: Bodega + #7: Completitud Documental -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-orange-500 rounded-full"></span> Distribución por Bodega
+                    </h3>
+                    <div class="h-48 mb-4">
+                        <canvas id="bodegasChart"></canvas>
+                    </div>
+                    <div class="space-y-2">
+                        @foreach($porBodega as $b)
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ $b->nombre }}</span>
+                            <span class="text-xs font-black text-orange-600 dark:text-orange-400">{{ $b->total }}</span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-teal-500 rounded-full"></span> Completitud Documental (Art. 36-A)
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 text-center">
+                            <div class="text-3xl font-black text-gray-800 dark:text-white">{{ $completitudDocs['total_operaciones'] }}</div>
+                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-1">Total Ops</div>
+                        </div>
+                        <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 text-center">
+                            <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">{{ $completitudDocs['completas'] }}</div>
+                            <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mt-1">Completas</div>
+                        </div>
+                        <div class="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 text-center">
+                            <div class="text-3xl font-black text-amber-600 dark:text-amber-400">{{ $completitudDocs['incompletas'] }}</div>
+                            <div class="text-[10px] font-bold text-amber-600 uppercase tracking-wide mt-1">Incompletas</div>
+                        </div>
+                        <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl p-4 text-center">
+                            <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400">{{ $completitudDocs['promedio_docs'] }}</div>
+                            <div class="text-[10px] font-bold text-indigo-600 uppercase tracking-wide mt-1">Prom. Docs/Op</div>
+                        </div>
+                    </div>
+                    <div class="mb-2 flex justify-between items-center">
+                        <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Tasa de Completitud</span>
+                        <span class="text-sm font-black text-teal-600 dark:text-teal-400">{{ $completitudDocs['porcentaje_completas'] }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
+                        <div class="bg-gradient-to-r from-teal-500 to-emerald-500 h-4 rounded-full transition-all duration-500" style="width: {{ $completitudDocs['porcentaje_completas'] }}%"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2">Documentos requeridos: Factura, Encargo, Transporte, Lista de Empaque</p>
+                </div>
+            </div>
+
+            <!-- #9: Tendencia de Modulación + Heatmap -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-emerald-500 rounded-full"></span> Tendencia de Modulación (Anual)
+                    </h3>
+                    <div class="h-64">
+                        <canvas id="tendenciaModulacionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-rose-500 rounded-full"></span> Heatmap por Día de Semana
+                    </h3>
+                    <div class="grid grid-cols-7 gap-2">
+                        @foreach($heatmap as $h)
+                        <div class="text-center p-3 rounded-2xl {{ $h['porcentaje_verde'] >= 70 ? 'bg-emerald-50 dark:bg-emerald-900/30' : ($h['porcentaje_verde'] >= 40 ? 'bg-amber-50 dark:bg-amber-900/30' : 'bg-rose-50 dark:bg-rose-900/30') }}">
+                            <div class="text-xs font-black text-gray-600 dark:text-gray-300 mb-1">{{ $h['dia'] }}</div>
+                            <div class="text-lg font-black {{ $h['porcentaje_verde'] >= 70 ? 'text-emerald-600' : ($h['porcentaje_verde'] >= 40 ? 'text-amber-600' : 'text-rose-600') }}">{{ $h['porcentaje_verde'] }}%</div>
+                            <div class="text-[10px] font-bold text-gray-400 mt-1">{{ $h['total'] }} ops</div>
+                            <div class="flex justify-center gap-1 mt-1">
+                                <span class="text-[9px] font-bold text-emerald-600">{{ $h['verdes'] }}V</span>
+                                <span class="text-[9px] font-bold text-rose-600">{{ $h['rojos'] }}R</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    <div class="flex items-center justify-center gap-4 mt-4 text-[10px] font-bold text-gray-500">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-900/50"></span> ≥70% Verde</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-100 dark:bg-amber-900/50"></span> 40-69%</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-rose-100 dark:bg-rose-900/50"></span> &lt;40%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- #10: Predicción de Volumen -->
+            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-violet-500 rounded-full"></span> Predicción de Volumen (Próximo Mes)
+                    </h3>
+                    <div class="bg-violet-50 dark:bg-violet-900/30 px-4 py-2 rounded-xl">
+                        <span class="text-[10px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wide">Estimado</span>
+                        <span class="text-2xl font-black text-violet-600 dark:text-violet-400 ml-2">{{ $prediccionProximoMes }}</span>
+                        <span class="text-xs text-violet-500 ml-1">operaciones</span>
+                    </div>
+                </div>
+                <div class="h-64">
+                    <canvas id="prediccionChart"></canvas>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-3 text-center">Predicción basada en promedio móvil de últimos 3 meses + tendencia lineal</p>
+            </div>
+
             <!-- Client Script Resources -->
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <script>
@@ -356,6 +513,173 @@
                                     grid: { display: false },
                                     ticks: { color: textColor, font: { weight: 'bold' } }
                                 }
+                            }
+                        }
+                    });
+
+                    // CHART 4: Patentes (Stacked Bar)
+                    new Chart(document.getElementById('patentesChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: {!! json_encode($porPatente->pluck('nombre')) !!},
+                            datasets: [
+                                {
+                                    label: 'Verdes',
+                                    data: {!! json_encode($porPatente->map(fn($p) => $verdesPorPatente[$p->nombre] ?? 0)) !!},
+                                    backgroundColor: '#10b981',
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Rojos',
+                                    data: {!! json_encode($porPatente->map(fn($p) => $rojosPorPatente[$p->nombre] ?? 0)) !!},
+                                    backgroundColor: '#f43f5e',
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: true, position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } } },
+                            scales: {
+                                x: { stacked: true, grid: { display: false }, ticks: { color: textColor, font: { size: 9, weight: 'bold' } } },
+                                y: { stacked: true, beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { weight: 'bold' } } }
+                            }
+                        }
+                    });
+
+                    // CHART 5: Importadores (Horizontal Bar)
+                    new Chart(document.getElementById('importadoresChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: {!! json_encode($porImportador->pluck('nombre')) !!},
+                            datasets: [{
+                                label: 'Operaciones',
+                                data: {!! json_encode($porImportador->pluck('total')) !!},
+                                backgroundColor: ['#06b6d4', '#0891b2', '#0e7490', '#155e75', '#164e63'],
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { weight: 'bold' } } },
+                                y: { grid: { display: false }, ticks: { color: textColor, font: { size: 10, weight: 'bold' } } }
+                            }
+                        }
+                    });
+
+                    // CHART 6: Bodegas (Doughnut)
+                    new Chart(document.getElementById('bodegasChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: {!! json_encode($porBodega->pluck('nombre')) !!},
+                            datasets: [{
+                                data: {!! json_encode($porBodega->pluck('total')) !!},
+                                backgroundColor: ['#f97316', '#ea580c', '#c2410c', '#9a3412', '#7c2d12'],
+                                borderWidth: 0,
+                                cutout: '65%'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+
+                    // CHART 9: Tendencia Modulación (Dual Line)
+                    new Chart(document.getElementById('tendenciaModulacionChart'), {
+                        type: 'line',
+                        data: {
+                            labels: {!! json_encode($tendenciaMeses) !!},
+                            datasets: [
+                                {
+                                    label: 'Verdes',
+                                    data: {!! json_encode($tendenciaVerdes) !!},
+                                    borderColor: '#10b981',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#10b981',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2
+                                },
+                                {
+                                    label: 'Rojos',
+                                    data: {!! json_encode($tendenciaRojos) !!},
+                                    borderColor: '#f43f5e',
+                                    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#f43f5e',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: true, position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } } },
+                            scales: {
+                                y: { beginAtZero: true, grid: { borderDash: [5, 5], color: gridColor }, ticks: { color: textColor, font: { weight: 'bold' } } },
+                                x: { grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold' } } }
+                            }
+                        }
+                    });
+
+                    // CHART 10: Predicción (Line + Dotted)
+                    const prediccionData = {!! json_encode($prediccionData) !!};
+                    const prediccionLabels = {!! json_encode($prediccionLabels) !!};
+                    const historicos = prediccionData.slice(0, -1);
+                    const prediccion = [null, ...Array(historicos.length - 1).fill(null), prediccionData[prediccionData.length - 1]];
+
+                    new Chart(document.getElementById('prediccionChart'), {
+                        type: 'line',
+                        data: {
+                            labels: prediccionLabels,
+                            datasets: [
+                                {
+                                    label: 'Histórico',
+                                    data: historicos,
+                                    borderColor: '#8b5cf6',
+                                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 5,
+                                    pointBackgroundColor: '#8b5cf6',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2
+                                },
+                                {
+                                    label: 'Predicción',
+                                    data: prediccion,
+                                    borderColor: '#a78bfa',
+                                    borderDash: [8, 4],
+                                    backgroundColor: 'rgba(167, 139, 250, 0.05)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 8,
+                                    pointBackgroundColor: '#a78bfa',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 3,
+                                    pointStyle: 'star'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: true, position: 'top', labels: { color: textColor, font: { size: 10, weight: 'bold' } } } },
+                            scales: {
+                                y: { beginAtZero: true, grid: { borderDash: [5, 5], color: gridColor }, ticks: { color: textColor, font: { weight: 'bold' } } },
+                                x: { grid: { display: false }, ticks: { color: textColor, font: { size: 9, weight: 'bold' } } }
                             }
                         }
                     });

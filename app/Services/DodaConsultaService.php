@@ -39,6 +39,9 @@ class DodaConsultaService
     // Tracking de consultas procesadas por tenant
     protected array $consultasPorTenant = [];
 
+    // Conteo original de créditos usados por tenant al inicio de la ejecución
+    protected array $creditosUsadosOriginal = [];
+
     // Contadores de la ejecución actual
     protected int $totalConsultadas = 0;
     protected int $totalCambios = 0;
@@ -328,10 +331,10 @@ class DodaConsultaService
                 continue;
             }
 
-            // Calcular cuántas consultas restantes tiene
             $consultasRestantes = $limite ? ($limite - $consultasUsadas) : null;
 
-            // Obtener operaciones pendientes de este tenant
+            $this->creditosUsadosOriginal[$tenant->id] = $consultasUsadas;
+
             $opsTenant = Operacion::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenant->id)
                 ->whereNotNull('num_doda')
@@ -347,27 +350,16 @@ class DodaConsultaService
                 ->with(['cliente', 'aduana', 'patente', 'tenant'])
                 ->get();
 
-            // Si hay límite, limitar las operaciones a procesar
-            if ($consultasRestantes !== null && $opsTenant->count() > $consultasRestantes) {
-                $opsTenant = $opsTenant->take($consultasRestantes);
-
-                $this->log('info', "📊 Limitando operaciones del tenant {$tenant->nombre_empresa}", [
-                    'disponibles' => $opsTenant->count(),
-                    'limite_restante' => $consultasRestantes,
-                ]);
-
-                // Notificar que se están limitando operaciones (solo modo manual y si quedan pocas)
-                if ($this->esEjecucionManual && $consultasRestantes <= ($limite * 0.2)) {
-                    $this->notificacionesService->crearNotificacion(
-                        $tenant->id,
-                        'bot_near_limit',
-                        '⚠️ Últimas consultas disponibles',
-                        "Solo te quedan {$consultasRestantes} consultas al SOIA-Bot este mes. Se procesarán {$opsTenant->count()} operaciones ahora.",
-                        'warning',
-                        '#',
-                        'Ver mi Plan'
-                    );
-                }
+            if ($this->esEjecucionManual && $consultasRestantes !== null && $consultasRestantes <= ($limite * 0.2)) {
+                $this->notificacionesService->crearNotificacion(
+                    $tenant->id,
+                    'bot_near_limit',
+                    '⚠️ Últimas consultas disponibles',
+                    "Solo te quedan {$consultasRestantes} consultas al SOIA-Bot este mes.",
+                    'warning',
+                    '#',
+                    'Ver mi Plan'
+                );
             }
 
             $operacionesPendientes = $operacionesPendientes->merge($opsTenant);
@@ -388,7 +380,7 @@ class DodaConsultaService
     protected function prepararConsultas($operaciones): array
     {
         $consultas = [];
-        $urlBase = 'https://pecem.mat.sat.gob.mx/app/qr/ce/faces/pages/mobile/validadorqr.jsf';
+        $urlBaseDefault = 'https://pecem.mat.sat.gob.mx/app/qr/ce/faces/pages/mobile/validadorqr.jsf';
 
         foreach ($operaciones as $operacion) {
             $doda = trim($operacion->num_doda);
@@ -397,14 +389,13 @@ class DodaConsultaService
                 continue;
 
             if (!isset($consultas[$doda])) {
-                // Construir URL
                 $tenantConfig = $operacion->tenant->configuracion ?? [];
                 $pecemConfig = $tenantConfig['pecem'] ?? [];
 
                 $urlBase = $pecemConfig['url_base'] ?? null;
 
                 if (empty($urlBase)) {
-                    $urlBase = config('app.pecem_api_url', env('PECEM_API_URL'));
+                    $urlBase = config('app.pecem_api_url', env('PECEM_API_URL', $urlBaseDefault));
                 }
 
                 if (empty($urlBase)) {
@@ -415,7 +406,6 @@ class DodaConsultaService
                     continue;
                 }
 
-                // Asegurar formato correcto
                 if (str_ends_with($urlBase, 'D3=')) {
                     $url = $urlBase . $doda;
                 } else if (strpos($urlBase, '?') !== false) {
@@ -465,12 +455,20 @@ class DodaConsultaService
         $pool = new Pool($client, $requests(), [
             'concurrency' => 10,
             'fulfilled' => function ($response, $doda) use ($consultasPorDoda) {
-                $this->totalConsultadas++;
-                $this->procesarRespuestaDoda(
-                    $doda,
-                    $response,
-                    $consultasPorDoda[$doda]['operaciones']
-                );
+                try {
+                    $this->totalConsultadas++;
+                    $this->procesarRespuestaDoda(
+                        $doda,
+                        $response,
+                        $consultasPorDoda[$doda]['operaciones']
+                    );
+                } catch (Exception $e) {
+                    $this->totalErrores++;
+                    $this->log('error', "✗ Error no capturado en callback DODA", [
+                        'doda' => $doda,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             },
             'rejected' => function ($reason, $doda) {
                 $this->totalErrores++;
@@ -517,7 +515,16 @@ class DodaConsultaService
 
             // Procesar CADA operación asociada a este DODA
             foreach ($operaciones as $operacion) {
-                $this->procesarOperacion($operacion, $nuevoEstatus, $datosExtraidos, $doda);
+                try {
+                    $this->procesarOperacion($operacion, $nuevoEstatus, $datosExtraidos, $doda);
+                } catch (Exception $e) {
+                    $this->totalErrores++;
+                    $this->log('error', "✗ Error procesando operación individual", [
+                        'operacion_id' => $operacion->id,
+                        'doda' => $doda,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             $this->resultados[] = [
@@ -612,8 +619,21 @@ class DodaConsultaService
             'hubo_cambio' => $huboCambio,
         ]);
 
-        // Trackear consulta por tenant SOLO si es una operación válida
         $tenantId = $operacion->tenant_id;
+        $consultasProcesadas = $this->consultasPorTenant[$tenantId] ?? 0;
+        $creditosOriginales = $this->creditosUsadosOriginal[$tenantId] ?? 0;
+        $limiteTenant = $operacion->tenant ? $operacion->tenant->getBotConsultasLimite() : null;
+
+        if ($limiteTenant && ($creditosOriginales + $consultasProcesadas) >= $limiteTenant) {
+            $this->log('warning', "⚠️ Tenant {$operacion->tenant->nombre_empresa} alcanzó límite de créditos durante ejecución", [
+                'creditos_originales' => $creditosOriginales,
+                'procesadas_en_ejecucion' => $consultasProcesadas,
+                'limite' => $limiteTenant,
+                'operacion_saltada' => $operacion->id,
+            ]);
+            return;
+        }
+
         if (!isset($this->consultasPorTenant[$tenantId])) {
             $this->consultasPorTenant[$tenantId] = 0;
         }
@@ -631,6 +651,28 @@ class DodaConsultaService
         if ($huboCambio && $this->esEstatusDefinitivo($nuevoEstatus)) {
             $updateData['modulacion_detectada_at'] = now();
             $updateData['fecha_modulacion'] = now();
+
+            // Si el scraper capturó la fecha real de activación, actualizar fecha_cruce_estimada
+            if (!empty($datosExtraidos['fecha_activacion'])) {
+                try {
+                    // Formato esperado: "27-05-2026 15:44:11" → convertir a Y-m-d H:i:s
+                    $fechaReal = \Carbon\Carbon::createFromFormat('d-m-Y H:i:s', trim($datosExtraidos['fecha_activacion']));
+                    $updateData['fecha_cruce_estimada'] = $fechaReal;
+
+                    $this->log('info', "📅 Fecha de cruce actualizada desde PECEM", [
+                        'operacion_id' => $operacion->id,
+                        'fecha_estimada_anterior' => $operacion->fecha_cruce_estimada?->toDateTimeString(),
+                        'fecha_real_peceem' => $fechaReal->toDateTimeString(),
+                        'operador_sat' => $datosExtraidos['operador_sat'] ?? null,
+                    ]);
+                } catch (\Exception $e) {
+                    $this->log('warning', "⚠️ No se pudo parsear fecha_activacion del PECEM", [
+                        'operacion_id' => $operacion->id,
+                        'fecha_activacion_raw' => $datosExtraidos['fecha_activacion'],
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
 
         // Agregar al JSON de logs
@@ -640,6 +682,8 @@ class DodaConsultaService
             'execution_id' => $this->executionId,
             'status' => 'success',
             'scraped_data' => $datosExtraidos,
+            'fecha_activacion_peceem' => $datosExtraidos['fecha_activacion'] ?? null,
+            'operador_sat' => $datosExtraidos['operador_sat'] ?? null,
         ];
 
         // Mantener solo los últimos 50 logs para no crecer indefinidamente
@@ -653,6 +697,16 @@ class DodaConsultaService
         Operacion::withoutGlobalScope('tenant')
             ->where('id', $operacion->id)
             ->update($updateData);
+
+        // Auto-completar: si ya tiene DODA + Pedimento y moduló → completada
+        $operacion->refresh();
+        if ($huboCambio && $nuevoEstatus && $operacion->num_doda && $operacion->expediente_id
+            && in_array($operacion->estado, ['pendiente', 'en_proceso', 'proceso'])) {
+            Operacion::withoutGlobalScope('tenant')
+                ->where('id', $operacion->id)
+                ->update(['estado' => 'completada']);
+            $operacion->refresh();
+        }
 
         // 3. Si hubo cambio, disparar notificaciones (Solo internas y cliente externo)
         if ($huboCambio) {
@@ -686,6 +740,8 @@ class DodaConsultaService
         $datos = [
             'integracion' => null,
             'modulacion' => null,
+            'fecha_activacion' => null,
+            'operador_sat' => null,
             'tipo_pedimento' => null,
             'pedimento' => null,
             'clave_pedimento' => null,
@@ -711,6 +767,13 @@ class DodaConsultaService
         preg_match_all('/\*\*\*([A-Z ]{10,50})\*\*\*/', $html, $matchesModulacion);
         if (!empty($matchesModulacion[1])) {
             $datos['modulacion'] = trim(last($matchesModulacion[1]));
+        }
+
+        // 1b. Extraer fecha/hora de activación y operador SAT
+        // Formato: "27-05-2026 15:44:11 OPER:521-855403"
+        if (preg_match('/(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})\s+OPER:([A-Z0-9\-]+)/i', $html, $mActivacion)) {
+            $datos['fecha_activacion'] = trim($mActivacion[1]);
+            $datos['operador_sat'] = trim($mActivacion[2]);
         }
 
         // 2. Extraer número de integración

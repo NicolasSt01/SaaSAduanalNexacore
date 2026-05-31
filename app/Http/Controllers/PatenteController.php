@@ -39,6 +39,13 @@ class PatenteController extends Controller
             'rfc' => 'nullable|max:13'
         ]);
 
+        $tenant = auth()->user()->tenant;
+        if (!$tenant->canAddResource('patentes')) {
+            $info = $tenant->getRecursoInfo('patentes');
+            return redirect()->back()->withInput()
+                ->with('error', "Has alcanzado el límite de patentes ({$info['uso']}/{$info['limite']}). Contacta a tu administrador para aumentar tu límite.");
+        }
+
         Patente::create($validated);
 
         return redirect()->route('patentes.index')

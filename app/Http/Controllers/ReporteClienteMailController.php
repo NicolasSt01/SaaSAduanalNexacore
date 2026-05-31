@@ -8,6 +8,7 @@ use App\Models\Operacion;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Services\ReporteClienteService;
+use App\Services\PngChartService;
 use DB;
 use App\Models\ReporteAcceso;
 
@@ -435,14 +436,14 @@ class ReporteClienteMailController extends Controller
 
             \Log::info('Generando PDF con datos', ['cliente' => $datos['cliente']['nombre']]);
 
-            // Generar URLs de gráficos usando QuickChart.io
-            $chartUrls = $this->generarChartUrls($datos);
+            $chartService = new PngChartService();
+            $charts = $this->generarChartsPng($datos, $chartService);
 
-            \Log::info('Charts generados', ['charts' => array_keys($chartUrls)]);
+            \Log::info('Charts generados', ['charts' => array_keys($charts)]);
 
             $pdf = \PDF::loadView('reportes.pdf-reporte', [
                 'datos' => $datos,
-                'charts' => $chartUrls,
+                'charts' => $charts,
             ]);
 
             $pdf->setPaper('letter', 'portrait');
@@ -742,6 +743,79 @@ class ReporteClienteMailController extends Controller
             return null;
         }
     }
+    private function generarChartsPng($datos, PngChartService $chart)
+    {
+        $charts = [];
+        $stats = $datos['estadisticas'];
+        $meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+        try {
+            $charts['greensReds'] = $chart->doughnut([
+                ['label' => 'Desaduanamiento Libre', 'value' => (int)$stats['greens'], 'color' => '#1a7a3a'],
+                ['label' => 'Reconocimiento Aduanero', 'value' => (int)$stats['reds'], 'color' => '#b91c1c'],
+            ], 300, 260);
+
+            if (!empty($datos['porAduana'])) {
+                $slices = [];
+                $colors = ['#1e3a5f','#1a7a3a','#b8860b','#b91c1c','#0e7490','#6f42c1','#d946ef','#f97316'];
+                foreach ($datos['porAduana'] as $i => $a) {
+                    $slices[] = ['label' => $a['nombre'], 'value' => (int)$a['total'], 'color' => $colors[$i % count($colors)]];
+                }
+                $charts['aduanas'] = $chart->doughnut($slices, 340, 320);
+            }
+
+            if (!empty($datos['historialMeses'])) {
+                $mv = [];
+                for ($i = 1; $i <= 12; $i++) { $mv[] = (int)($datos['historialMeses'][$i] ?? 0); }
+                $charts['historico'] = $chart->lineChart([
+                    ['label' => 'Operaciones', 'color' => '#1e3a5f', 'data' => $mv],
+                ], $meses, 520, 230);
+            }
+
+            if (!empty($datos['tendenciaVerdes'])) {
+                $charts['tendencia'] = $chart->lineChart([
+                    ['label' => 'Verdes', 'color' => '#1a7a3a', 'data' => $datos['tendenciaVerdes']],
+                    ['label' => 'Rojos', 'color' => '#b91c1c', 'data' => $datos['tendenciaRojos']],
+                ], $meses, 520, 230);
+            }
+
+            if (!empty($datos['porPatente'])) {
+                $pn = array_column($datos['porPatente'], 'nombre');
+                $pvd = []; $prd = [];
+                foreach ($pn as $p) {
+                    $pvd[] = (int)($datos['verdesPorPatente'][$p] ?? 0);
+                    $prd[] = (int)($datos['rojosPorPatente'][$p] ?? 0);
+                }
+                $charts['patentes'] = $chart->barChart([
+                    ['label' => 'Verdes', 'color' => '#1a7a3a', 'data' => $pvd, 'stacked' => true],
+                    ['label' => 'Rojos', 'color' => '#b91c1c', 'data' => $prd, 'stacked' => true],
+                ], $pn, 460, 240);
+            }
+
+            if (!empty($datos['topImportadores'])) {
+                $bars = [];
+                $importadores = array_slice($datos['topImportadores'], 0, 8);
+                foreach ($importadores as $i => $imp) {
+                    $bars[] = ['label' => $imp['importador'], 'value' => (int)$imp['total'], 'color' => '#1e3a5f'];
+                }
+                $charts['importadores'] = $chart->horizontalBar($bars, 420, 240);
+            }
+
+            if (!empty($datos['porBodega'])) {
+                $slices = [];
+                $colors = ['#1e3a5f','#f97316','#1a7a3a','#b91c1c','#0e7490'];
+                foreach ($datos['porBodega'] as $i => $b) {
+                    $slices[] = ['label' => $b['nombre'], 'value' => (int)$b['total'], 'color' => $colors[$i % count($colors)]];
+                }
+                $charts['bodegas'] = $chart->doughnut($slices, 320, 280);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error generando charts SVG:', ['error' => $e->getMessage()]);
+        }
+
+        return $charts;
+    }
+
     private function generarChartUrls($datos)
     {
         $urls = [];
