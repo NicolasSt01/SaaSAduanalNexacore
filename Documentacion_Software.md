@@ -216,6 +216,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 23 | **INC-040**: Botón "Reenviar" WhatsApp no valida límite de mensajes + doble incremento del contador | Alta | Cerrado |
 | 24 | **INC-041**: Capturar fecha real de activación del PECEM y actualizar fecha_cruce_estimada | Alta | Cerrado |
 | 25 | **INC-042**: Containerización Docker completa para despliegue en VPS con dockploy | Alta | Cerrado |
+| 26 | **INC-043**: Corrección de build Docker — eliminación de dependencia imagick innecesaria | Media | Cerrado |
 
 ---
 
@@ -1134,5 +1135,31 @@ El proyecto no contaba con configuración Docker ni archivos de despliegue conta
 - `docker/php/php.ini`
 - `docker/mysql/my.cnf`
 - `docker/supervisor/supervisord.conf`
+
+**Estado:** Cerrado
+
+---
+
+### INC-043: Corrección de Build Docker — Eliminación de Dependencia Imagick Innecesaria
+
+**Fecha:** 2026-06-01
+**Severidad:** Media
+**Módulo:** Infraestructura / Docker
+
+**Problema:**
+El `Dockerfile` incluía la instalación de la extensión `imagick` vía PECL, la cual requiere las librerías de desarrollo de ImageMagick (`libmagickwand-dev`) instaladas en el sistema. Al no estar presentes, el build fallaba con:
+```
+configure: error: not found. Please provide a path to MagickWand-config
+ERROR: /tmp/pear/temp/imagick/configure failed
+```
+
+**Causa Raíz:**
+La extensión `imagick` se incluyó en el Dockerfile porque estaba presente en el entorno de desarrollo local (macOS), pero el proyecto **no utiliza Imagick en producción**. El servicio `SvgChartService` (que usaba Imagick para convertir SVG a PNG) es código muerto — fue reemplazado por `PngChartService` (INC-037) que usa exclusivamente la extensión nativa **GD** de PHP para generar gráficos.
+
+**Solución Aplicada:**
+Se eliminó `imagick` del `pecl install` y del `docker-php-ext-enable` en el Dockerfile. Se mantienen únicamente las extensiones necesarias: `redis` e `igbinary`.
+
+**Archivos Modificados:**
+- `Dockerfile`
 
 **Estado:** Cerrado

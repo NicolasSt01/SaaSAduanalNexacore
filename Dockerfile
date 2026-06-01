@@ -26,8 +26,8 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     fileinfo gd gettext gmp intl ldap mbstring opcache \
     pcntl soap sockets zip
 
-RUN pecl install redis igbinary imagick \
-    && docker-php-ext-enable redis igbinary imagick
+RUN pecl install redis igbinary \
+    && docker-php-ext-enable redis igbinary
 
 COPY . /var/www/html
 WORKDIR /var/www/html
