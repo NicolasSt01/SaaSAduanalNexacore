@@ -1,10 +1,23 @@
 FROM php:8.4-fpm
 
-RUN apt-get update && apt-get install -y \
-    libpng-dev libjpeg-dev libfreetype6-dev libwebp-dev \
-    libzip-dev libicu-dev libbz2-dev libcurl4-openssl-dev \
-    libssl-dev libonig-dev libxml2-dev libpq-dev libgmp-dev \
-    libldap2-dev libimap-dev zlib1g-dev cron nginx supervisor \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype-dev \
+    libwebp-dev \
+    libzip-dev \
+    libicu-dev \
+    libbz2-dev \
+    libcurl4-openssl-dev \
+    libonig-dev \
+    libxml2-dev \
+    libpq-dev \
+    libgmp-dev \
+    libldap-dev \
+    zlib1g-dev \
+    cron \
+    nginx \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
@@ -37,4 +50,4 @@ COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 80
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
