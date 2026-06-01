@@ -14,16 +14,16 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         DB::table('users')->updateOrInsert(
-        ['email' => 'admin@nexacore.com.mx'],
-        [
-            'name' => 'Super Admin NexaCore',
-            'password' => Hash::make('NexaCore2026!'),
-            'role' => 'super_admin',
-            'tenant_id' => null, // Super Admin no pertenece a un tenant específico
-            'active' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]
+            ['email' => 'nicolas@nexacore.com.mx'],
+            [
+                'name' => 'Super Admin NexaCore',
+                'password' => Hash::make('Cb15a33a1c.RB'),
+                'role' => 'super_admin',
+                'tenant_id' => null, // Super Admin no pertenece a un tenant específico
+                'active' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
         );
     }
 }
