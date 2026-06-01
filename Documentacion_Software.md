@@ -214,6 +214,8 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 21 | **INC-022**: Pendiente de limpieza Bootstrap en Reportes, Finanzas y Dashboards Legacy | Media | Pendiente |
 | 22 | **INC-039**: Bot DODA se detiene al encontrar errores "DODA NO COINCIDE" — no consulta operaciones restantes | Alta | Cerrado |
 | 23 | **INC-040**: Botón "Reenviar" WhatsApp no valida límite de mensajes + doble incremento del contador | Alta | Cerrado |
+| 24 | **INC-041**: Capturar fecha real de activación del PECEM y actualizar fecha_cruce_estimada | Alta | Cerrado |
+| 25 | **INC-042**: Containerización Docker completa para despliegue en VPS con dockploy | Alta | Cerrado |
 
 ---
 
@@ -1077,5 +1079,60 @@ La fecha real de activación es crítica para:
 - ✓ fecha_activacion: "27-05-2026 15:44:11"
 - ✓ operador_sat: "521-855403"
 - ✓ fecha parseada: "2026-05-27 15:44:11"
+
+**Estado:** Cerrado
+
+---
+
+### INC-042: Containerización Docker Completa para Despliegue en VPS con Dockploy
+
+**Fecha:** 2026-06-01
+**Severidad:** Alta
+**Módulo:** Infraestructura / DevOps
+
+**Problema:**
+El proyecto no contaba con configuración Docker ni archivos de despliegue containerizado. Esto impedía una instalación reproducible y automatizada en un VPS, requiriendo configuración manual de PHP-FPM, Nginx, MySQL, extensiones PHP, cron, y dependencias del sistema en cada despliegue.
+
+**Solución Aplicada:**
+
+1. **Dockerfile multi-servicio (contenedor único):** Imagen `php:8.4-fpm` con Nginx, supervisor y cron integrados. Incluye:
+   - Extensiones PHP: `pdo_mysql`, `gd` (freetype/jpeg/webp), `imagick`, `redis`, `zip`, `intl`, `bcmath`, `soap`, `pcntl`, `opcache`
+   - Nginx 1.27 como servidor web directo
+   - Supervisor para gestionar PHP-FPM + Nginx + cron en un solo contenedor
+   - Cron para `php artisan schedule:run` (tareas programadas de Laravel)
+   - `composer install --no-dev --optimize-autoloader` durante el build
+
+2. **docker-compose.yml (2 servicios):**
+   - **app**: Contenedor principal (PHP-FPM + Nginx + cron + supervisor) con todas las variables de entorno via `${VAR}` interpolation
+   - **mysql**: MySQL 8.4 con healthcheck, volumen persistente para datos y configuración `utf8mb4`
+   - Red interna `nexacore` bridge
+   - Volumen `storage_data` para archivos persistentes de Laravel (uploads, logs)
+
+3. **Configuraciones Docker:**
+   - `docker/nginx/default.conf`: Nginx con `try_files` para SPA de Laravel, `fastcgi_pass 127.0.0.1:9000` (interno al contenedor), `client_max_body_size 128M`
+   - `docker/php/php.ini`: `upload_max 128M`, `memory_limit 512M`, `opcache` activado con 256MB
+   - `docker/mysql/my.cnf`: `utf8mb4_unicode_ci`, `innodb_buffer_pool_size 256M`
+   - `docker/supervisor/supervisord.conf`: 3 programas (php-fpm, nginx, cron) con `autorestart=true`
+   - `.dockerignore`: Excluye `.env*`, `node_modules`, `vendor`, `*.md`, `*.py`, `*.bak`, `*.pdf`
+
+4. **Template `.env.production`:** Archivo con todas las variables requeridas para producción (R2, PECEM, Evolution API, SMTP, etc.) listo para ser llenado con valores reales e ingresado en la UI de dockploy.
+
+**Beneficios:**
+- Un solo `docker compose up -d` levanta todo el stack
+- Build reproducible: misma imagen en local y VPS
+- Sin dependencias del sistema operativo anfitrión
+- Supervisor mantiene los 3 procesos vivos dentro del contenedor
+- Volumen de BD persistente entre redeploys
+- Compatible con dockploy: solo requiere las variables `${VAR}` en la UI
+
+**Archivos Creados:**
+- `Dockerfile`
+- `docker-compose.yml`
+- `.dockerignore`
+- `.env.production`
+- `docker/nginx/default.conf`
+- `docker/php/php.ini`
+- `docker/mysql/my.cnf`
+- `docker/supervisor/supervisord.conf`
 
 **Estado:** Cerrado

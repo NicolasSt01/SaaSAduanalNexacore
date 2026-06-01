@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg-dev libfreetype6-dev libwebp-dev \
     libzip-dev libicu-dev libbz2-dev libcurl4-openssl-dev \
     libssl-dev libonig-dev libxml2-dev libpq-dev libgmp-dev \
-    libldap2-dev libimap-dev zlib1g-dev cron \
+    libldap2-dev libimap-dev zlib1g-dev cron nginx supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
@@ -24,12 +24,17 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
 RUN echo "* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/laravel \
     && chmod 0644 /etc/cron.d/laravel \
     && crontab /etc/cron.d/laravel
 
+RUN rm -f /etc/nginx/sites-enabled/default
+
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-custom.ini
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE 9000
+EXPOSE 80
 
-CMD ["php-fpm"]
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
