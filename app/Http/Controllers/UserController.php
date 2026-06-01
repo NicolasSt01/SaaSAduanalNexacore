@@ -532,8 +532,8 @@ class UserController extends Controller
         } elseif ($tipoAgrupacion === 'semana') {
             // Agrupar por semana
             $porSemana = Operacion::where('tenant_id', $tenantId)->select(
-                DB::raw('YEAR(fecha) as anio'),
-                DB::raw('WEEK(fecha, 1) as semana'),
+                DB::raw('YEAR(fecha_registro) as anio'),
+                DB::raw('WEEK(fecha_registro, 1) as semana'),
                 DB::raw('COUNT(*) as total')
             )
                 ->whereBetween('fecha_registro', [$inicio, $fin])
@@ -558,8 +558,8 @@ class UserController extends Controller
         } elseif ($tipoAgrupacion === 'trimestre') {
             // NUEVO: Agrupar por trimestre
             $porTrimestre = Operacion::where('tenant_id', $tenantId)->select(
-                DB::raw('YEAR(fecha) as anio'),
-                DB::raw('QUARTER(fecha) as trimestre'),
+                DB::raw('YEAR(fecha_registro) as anio'),
+                DB::raw('QUARTER(fecha_registro) as trimestre'),
                 DB::raw('COUNT(*) as total')
             )
                 ->whereBetween('fecha_registro', [$inicio, $fin])
@@ -586,7 +586,7 @@ class UserController extends Controller
         } else { // mes
             // Agrupar por mes
             $porMes = Operacion::where('tenant_id', $tenantId)->select(
-                DB::raw('YEAR(fecha) as anio'),
+                DB::raw('YEAR(fecha_registro) as anio'),
                 DB::raw('MONTH(fecha_registro) as mes'),
                 DB::raw('COUNT(*) as total')
             )

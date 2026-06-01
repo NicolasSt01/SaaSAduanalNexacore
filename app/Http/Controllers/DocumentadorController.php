@@ -67,7 +67,7 @@ class DocumentadorController extends Controller
         $operacion->estado = $request->estado;
 
         if ($request->comentarios) {
-            // Aquí se puede guardar los comentarios 
+            $operacion->observaciones = $request->comentarios;
         }
 
         $operacion->save();
@@ -347,7 +347,7 @@ class DocumentadorController extends Controller
         //$operacion->fecha_registro_completado = now();
 
         if ($request->comentarios) {
-            // Guardar comentarios si es necesario
+            $operacion->observaciones = $request->comentarios;
         }
 
         $operacion->save();
@@ -448,7 +448,7 @@ class DocumentadorController extends Controller
             //$operacion->fecha_registro_completado = now();
 
             if ($request->comentarios) {
-                // Guardar comentarios si es necesario
+                $operacion->observaciones = $request->comentarios;
             }
 
             $operacion->save();
@@ -530,7 +530,6 @@ class DocumentadorController extends Controller
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollback();
-            dd($e);
             return redirect()->back()
                 ->withErrors($e->validator)
                 ->withInput();
@@ -591,7 +590,7 @@ class DocumentadorController extends Controller
         //$operacion->fecha_registro_completado = now();
 
         if ($request->comentarios) {
-            // Guardar comentarios si es necesario
+            $operacion->observaciones = $request->comentarios;
         }
 
         $operacion->save();
@@ -618,12 +617,16 @@ class DocumentadorController extends Controller
 
         $efectividad = $totalHoy > 0 ? number_format(($completadosHoy / $totalHoy) * 100, 2) : 0;
 
+        $canceladasHoy = Operacion::whereDate('fecha_cancelacion', now()->today())
+            ->where('estado', 'cancelada')
+            ->count();
+
 $stats = [
             'total_hoy' => $totalHoy,
             'completados_hoy' => $completadosHoy,
             'pendientes' => $pendientes,
             'efectividad' => $efectividad,
-            'ranking_posicion' => $posicionUser,
+            'ranking_posicion' => null,
             'canceladas_hoy' => $canceladasHoy,
         ];
 
@@ -632,7 +635,7 @@ $stats = [
             ->withCount([
                 'operaciones' => function ($query) {
                     $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
-                        ->where('estado', 'completado');
+                        ->where('estado', 'completada');
                 }
             ])
             ->orderByDesc('operaciones_count')
@@ -644,6 +647,11 @@ $stats = [
                     'is_current_user' => $rankItem->id === Auth::id()
                 ];
             });
+
+        $posicionUser = $rankingSemanal->search(fn($r) => $r->is_current_user);
+        $posicionUser = $posicionUser !== false ? $posicionUser + 1 : null;
+        $stats['ranking_posicion'] = $posicionUser;
+
         return view('documentador.dashboard', compact('stats', 'operaciones', 'rankingSemanal'));
     }
 
@@ -804,7 +812,8 @@ $stats = [
 
         $query = Operacion::query()
             ->where('tenant_id', $user->tenant_id)
-            ->with(['cliente', 'importador', 'aduana', 'bodega', 'expediente']);
+            ->with(['cliente', 'importador', 'aduana', 'bodega', 'expediente'])
+            ->withCount('documentos');
 
         // Si NO hay búsqueda global Y NO hay filtros de fecha manuales, aplicar filtro por defecto (hoy+)
         if (!$request->filled('q') && !$request->filled('fecha_desde') && !$request->filled('fecha_hasta')) {
@@ -827,8 +836,9 @@ $stats = [
                             ->orWhere('id', $opId);
                     });
             } else {
-                // Si hay filtros de fecha o búsqueda, solo incluir la operación específica
-                $query->orWhere('id', $opId);
+                $query->orWhere(function ($q) use ($opId) {
+                    $q->where('id', $opId)->where('tenant_id', auth()->user()->tenant_id);
+                });
             }
         }
 
@@ -931,7 +941,7 @@ $stats = [
                 'alpha' => $op->codigo_alpha,
                 'fecha_cruce' => $op->fecha_cruce_estimada ? $op->fecha_cruce_estimada->format('Y-m-d') : null,
                 'motivo_cancelacion' => $op->motivo_cancelacion,
-                'documentos_count' => $op->documentos()->count(),
+                'documentos_count' => $op->documentos_count,
             ];
         });
 

@@ -71,9 +71,9 @@ class OperacionController extends Controller
             $query->where(function ($q) use ($busqueda) {
                 $q->where("referencia", "like", "%" . $busqueda . "%")
                   ->orWhere("num_factura", "like", "%" . $busqueda . "%")
-                  ->orWhereHas("cliente", function ($q2) use ($busqueda) {
-                      $q2->where("nombre", "like", "%" . $busqueda . "%");
-                  });
+            ->orWhereHas("cliente", function ($q2) use ($busqueda) {
+                       $q2->where("nombre_empresa", "like", "%" . $busqueda . "%");
+                   });
             });
         }
 
@@ -177,7 +177,7 @@ class OperacionController extends Controller
             'codigo_alpha' => 'nullable|string|max:20',
             'num_doda' => 'nullable|string|max:50',
             'modulacion' => 'nullable|string|max:100',
-            'pedimento_id' => [
+            'expediente_id' => [
                 'nullable',
                 'exists:expedientes,id',
                 function ($attribute, $value, $fail) {
@@ -193,6 +193,10 @@ class OperacionController extends Controller
         $request->validate($rules);
 
         $data = $request->all();
+        if ($request->has('pedimento_id')) {
+            $data['expediente_id'] = $request->pedimento_id;
+            unset($data['pedimento_id']);
+        }
         // Si no se envía fecha_registro, usar hoy
         if (empty($data['fecha_registro'])) {
             $data['fecha_registro'] = Carbon::today();
@@ -231,6 +235,10 @@ class OperacionController extends Controller
 
             // Asignar el usuario autenticado como documentador si no se proporciona
             $data = $request->all();
+            if ($request->has('pedimento_id')) {
+                $data['expediente_id'] = $request->pedimento_id;
+                unset($data['pedimento_id']);
+            }
             if (empty($data['usuario_registro_id'])) {
                 $data['usuario_registro_id'] = auth()->id();
             }
@@ -253,13 +261,13 @@ class OperacionController extends Controller
                 notificarAlphaPendiente($operacion);
             }
         
-
+ 
 
 
             return redirect()->route('trafico.operaciones.show', $operacion->id)
                 ->with('success', 'Exportación registrada correctamente.');
         } catch (Exception $e) {
-            //dd($e->getMessage());
+            \Log::error('Error al crear la exportación: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Error al crear la exportación: ' . $e->getMessage())
                 ->withInput();
@@ -289,6 +297,10 @@ class OperacionController extends Controller
 
             // Asignar el usuario autenticado como documentador si no se proporciona
             $data = $request->all();
+            if ($request->has('pedimento_id')) {
+                $data['expediente_id'] = $request->pedimento_id;
+                unset($data['pedimento_id']);
+            }
             if (empty($data['usuario_registro_id'])) {
                 $data['usuario_registro_id'] = auth()->id();
             }
@@ -350,7 +362,7 @@ class OperacionController extends Controller
                 ->with('success', 'Exportación registrada correctamente.');
         } catch (Exception $e) {
             DB::rollback();
-            dd($e->getMessage());
+            \Log::error('Error al crear la exportación: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Error al crear la exportación: ' . $e->getMessage())
                 ->withInput();
@@ -632,7 +644,7 @@ class OperacionController extends Controller
 
             $datosModal = [
                 'referencia' => $operacion->referencia,
-                'fecha_registro' => Carbon::parse($operacion->fecha_registro_registro)->format('m/d/Y'),
+                'fecha_registro' => Carbon::parse($operacion->fecha_registro)->format('m/d/Y'),
                 'cliente' => $operacion->cliente->nombre_empresa ?? '',
                 'importador' => $operacion->importador->nombre ?? '',
                 'producto' => $operacion->nombre_producto ?? '',
@@ -699,6 +711,10 @@ class OperacionController extends Controller
 
             // Asignar el usuario autenticado como documentador si no se proporciona
             $data = $request->all();
+            if ($request->has('pedimento_id')) {
+                $data['expediente_id'] = $request->pedimento_id;
+                unset($data['pedimento_id']);
+            }
             if (empty($data['usuario_registro_id'])) {
                 $data['usuario_registro_id'] = auth()->id();
             }
@@ -750,7 +766,8 @@ class OperacionController extends Controller
             $operacion = Operacion::findOrFail($id);
         return view('operaciones.show', compact('operacion'));
         }catch(Exception $e) {
-            dd($e->getMessage());
+            \Log::error('Error al mostrar operación: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al mostrar la operación');
         }
         
     }
@@ -759,13 +776,13 @@ class OperacionController extends Controller
     {
         $operacion = Operacion::findOrFail($id);
 
-        $clientes = Cliente::orderBy('nombre')->get();
+        $clientes = Cliente::orderBy('nombre_empresa')->get();
         $importadores = Importador::orderBy('nombre')->get();
-        $bodegas = Bodega::orderBy('nombre')->get();
-        $aduanas = Aduana::orderBy('nombre')->get();
-        $patentes = Patente::orderBy('numero')->get();
+        $bodegas = Bodega::orderBy('nombre_bodega')->get();
+        $aduanas = Aduana::orderBy('nombre_aduana')->get();
+        $patentes = Patente::orderBy('numero_patente')->get();
         $expedientes = Expediente::whereIn('estado', ['Abierto', 'En proceso'])
-            ->orWhere('id', $operacion->pedimento_id) // Keep current even if closed
+            ->orWhere('id', $operacion->expediente_id)
             ->orderBy('numero_pedimento')->get();
         $documentadores = User::where('role', 'documentador')->orderBy('name')->get();
 
@@ -801,11 +818,11 @@ class OperacionController extends Controller
             'codigo_alpha' => 'nullable|string|max:20',
             'num_doda' => 'nullable|string|max:50',
             'modulacion' => 'nullable|string|max:100',
-            'pedimento_id' => [
+            'expediente_id' => [
                 'nullable',
                 'exists:expedientes,id',
                 function ($attribute, $value, $fail) use ($operacion) {
-                    if ($value == $operacion->expediente_id) return; // Permitir quedarse en el actual
+                    if ($value == $operacion->expediente_id) return;
                     $exp = Expediente::find($value);
                     if ($exp && $exp->estado === 'Cerrado') {
                         $fail('No se pueden relacionar operaciones a un pedimento cerrado.');
@@ -818,6 +835,10 @@ class OperacionController extends Controller
         $request->validate($rules);
 
         $data = $request->all();
+        if ($request->has('pedimento_id')) {
+            $data['expediente_id'] = $request->pedimento_id;
+            unset($data['pedimento_id']);
+        }
         // Si no se envía fecha_registro, mantener la original
         if (empty($data['fecha_registro'])) {
             unset($data['fecha_registro']);
@@ -2752,7 +2773,7 @@ public function modalConceptos($thermo, $alpha)
 
         $completadosHoy = Operacion::where('usuario_cierre_id', $userId)
             ->whereDate('fecha_registro', $hoy)
-            ->where('estado', 'completado')
+            ->where('estado', 'completada')
             ->count();
 
         $pendientes = Operacion::where('usuario_cierre_id', $userId)
@@ -2779,7 +2800,7 @@ public function modalConceptos($thermo, $alpha)
 
         $completadosSemana = Operacion::where('usuario_cierre_id', $userId)
             ->whereBetween('fecha_registro', [$inicioSemana, $finSemana])
-            ->where('estado', 'completado')
+            ->where('estado', 'completada')
             ->where('estado', '!=', 'cancelada')
             ->count();
 
@@ -5532,9 +5553,10 @@ private function enviarNotificacionYCorreo($operacion, $cliente, $status_txt, $l
                                 try{
                                     EnviarCorreoModulacionJob::dispatch($cliente->id, $datosTramite, $status_txt);
                                 }catch(Exception $e){
-                                    \Log::error("Error en generar log de job: " . $ex->getMessage());
+                                    \Log::error("Error en generar log de job: " . $e->getMessage());
                                 }
                                 
+
 
                             }
                         }else{
@@ -5564,7 +5586,7 @@ private function enviarNotificacionYCorreo($operacion, $cliente, $status_txt, $l
                                try{
                                     EnviarCorreoModulacionJob::dispatch($cliente->id, $datosTramite, $status_txt);
                                 }catch(Exception $e){
-                                    \Log::error("Error en generar log de job: " . $ex->getMessage());
+                                    \Log::error("Error en generar log de job: " . $e->getMessage());
                                 }
                             }
                         }
