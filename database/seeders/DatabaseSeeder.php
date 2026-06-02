@@ -21,10 +21,4 @@ class DatabaseSeeder extends Seeder
             ExpedienteSeeder::class ,
         ]);
     }
-
-    /*User::factory()->create([
-     'name' => 'Test User',
-     'email' => 'test@example.com',
-     ]);*/
-    }
 }
