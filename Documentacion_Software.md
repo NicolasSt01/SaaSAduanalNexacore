@@ -220,6 +220,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 27 | **INC-044**: Conflicto de puerto 80 en deploy Docker — limpieza de contenedores previos | Media | Cerrado |
 | 28 | **INC-045**: Eliminación de mapeo directo de puertos — delegar ruteo a Traefik de dockploy | Media | Cerrado |
 | 29 | **INC-046**: Corrección de red Docker — migración a red overlay dokploy-network para conectividad con Traefik | Media | Cerrado |
+| 30 | **INC-047**: Corrección de seeder InitialTenant — columna tenant_id inexistente en reportes_acceso | Alta | Cerrado |
 
 ---
 
@@ -1250,5 +1251,34 @@ Tras configurar el dominio en dockploy, Traefik retornaba 404 al intentar accede
 
 **Archivos Modificados:**
 - `docker-compose.yml`
+
+**Estado:** Cerrado
+
+---
+
+### INC-047: Corrección de Seeder InitialTenant — Columna tenant_id Inexistente en reportes_acceso
+
+**Fecha:** 2026-06-01
+**Severidad:** Alta
+**Módulo:** Base de Datos / Seeders
+
+**Problema:**
+Al ejecutar `php artisan db:seed --force`, el seeder `InitialTenantSeeder` fallaba con:
+```
+SQLSTATE[42S22]: Column not found: 1054 Unknown column 'tenant_id' in 'field list'
+SQL: update `reportes_acceso` set `tenant_id` = 1
+```
+La tabla `reportes_acceso` no tiene columna `tenant_id` (es una tabla de tokens de acceso a reportes vinculada a `cliente_id`, no a `tenant_id`).
+
+**Causa Raíz:**
+El seeder `InitialTenantSeeder` iteraba sobre una lista de 14 tablas aplicando `UPDATE SET tenant_id = $tenantId` sin verificar si cada tabla realmente tenía la columna `tenant_id`.
+
+**Solución Aplicada:**
+1. Se eliminó `reportes_acceso` de la lista de tablas en el seeder
+2. Se agregó validación `hasColumn($tableName, 'tenant_id')` antes de cada `UPDATE`, haciendo el seeder tolerante a tablas sin esa columna
+3. Esto previene fallos futuros si otras tablas tampoco tienen `tenant_id`
+
+**Archivos Modificados:**
+- `database/seeders/InitialTenantSeeder.php`
 
 **Estado:** Cerrado

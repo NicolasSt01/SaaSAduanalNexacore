@@ -40,12 +40,11 @@ class InitialTenantSeeder extends Seeder
             'conceptos_adicionales',
             'recorridos',
             'referencias',
-            'reportes_acceso'
         ];
 
         // 2. Asignar todos los registros existentes a este tenant
         foreach ($tables as $tableName) {
-            if (DB::getSchemaBuilder()->hasTable($tableName)) {
+            if (DB::getSchemaBuilder()->hasTable($tableName) && DB::getSchemaBuilder()->hasColumn($tableName, 'tenant_id')) {
                 DB::table($tableName)->update(['tenant_id' => $tenantId]);
             }
         }
