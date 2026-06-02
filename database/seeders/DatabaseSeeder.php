@@ -17,12 +17,10 @@ class DatabaseSeeder extends Seeder
             InitialAduanaSeeder::class ,
             InitialTenantSeeder::class ,
             SuperAdminSeeder::class ,
-        ]);
-        User::factory(10)->create();
-        $this->call([
             AdminUserSeeder::class ,
             ExpedienteSeeder::class ,
         ]);
+    }
 
     /*User::factory()->create([
      'name' => 'Test User',

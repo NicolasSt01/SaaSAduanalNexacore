@@ -221,6 +221,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 28 | **INC-045**: Eliminación de mapeo directo de puertos — delegar ruteo a Traefik de dockploy | Media | Cerrado |
 | 29 | **INC-046**: Corrección de red Docker — migración a red overlay dokploy-network para conectividad con Traefik | Media | Cerrado |
 | 30 | **INC-047**: Corrección de seeder InitialTenant — columna tenant_id inexistente en reportes_acceso | Alta | Cerrado |
+| 31 | **INC-048**: Corrección de seeder DatabaseSeeder — eliminación de User::factory() que requiere Faker en producción | Alta | Cerrado |
 
 ---
 
@@ -1280,5 +1281,36 @@ El seeder `InitialTenantSeeder` iteraba sobre una lista de 14 tablas aplicando `
 
 **Archivos Modificados:**
 - `database/seeders/InitialTenantSeeder.php`
+
+**Estado:** Cerrado
+
+---
+
+### INC-048: Corrección de Seeder DatabaseSeeder — User::factory() Requiere Faker en Producción
+
+**Fecha:** 2026-06-01
+**Severidad:** Alta
+**Módulo:** Base de Datos / Seeders
+
+**Problema:**
+Al ejecutar `php artisan migrate:fresh --seed --force` en el contenedor de producción, el seeder fallaba con:
+```
+Class "Faker\Factory" not found
+```
+El error ocurría en `DatabaseSeeder` al llamar `User::factory(10)->create()`, que internamente usa Faker para generar datos aleatorios (nombres, emails, etc.).
+
+**Causa Raíz:**
+Faker es una dependencia `require-dev` en `composer.json`. El `Dockerfile` ejecuta `composer install --no-dev`, por lo que Faker no está disponible en el entorno de producción. La creación de 10 usuarios dummy con factories no es necesaria para el funcionamiento del sistema.
+
+**Solución Aplicada:**
+Se eliminó la línea `User::factory(10)->create()` y la estructura partida de llamadas al seeder. `DatabaseSeeder` ahora ejecuta todos los seeders en una sola secuencia:
+1. `InitialAduanaSeeder`
+2. `InitialTenantSeeder`
+3. `SuperAdminSeeder`
+4. `AdminUserSeeder`
+5. `ExpedienteSeeder`
+
+**Archivos Modificados:**
+- `database/seeders/DatabaseSeeder.php`
 
 **Estado:** Cerrado
