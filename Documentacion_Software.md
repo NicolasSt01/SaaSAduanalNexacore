@@ -219,6 +219,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 26 | **INC-043**: Corrección de build Docker — eliminación de dependencia imagick innecesaria | Media | Cerrado |
 | 27 | **INC-044**: Conflicto de puerto 80 en deploy Docker — limpieza de contenedores previos | Media | Cerrado |
 | 28 | **INC-045**: Eliminación de mapeo directo de puertos — delegar ruteo a Traefik de dockploy | Media | Cerrado |
+| 29 | **INC-046**: Corrección de red Docker — migración a red overlay dokploy-network para conectividad con Traefik | Media | Cerrado |
 
 ---
 
@@ -1222,5 +1223,32 @@ Se eliminó la sección `ports` del servicio `app` en `docker-compose.yml`. El c
 
 **Configuración requerida en dockploy:**
 - Pestaña Domains → Service: `app`, Port: `80`, Domain: `76.13.127.66` (o dominio propio)
+
+**Estado:** Cerrado
+
+---
+
+### INC-046: Corrección de Red Docker — Migración a Red Overlay dokploy-network
+
+**Fecha:** 2026-06-01
+**Severidad:** Alta
+**Módulo:** Infraestructura / Docker
+
+**Problema:**
+Tras configurar el dominio en dockploy, Traefik retornaba 404 al intentar acceder a la aplicación. La app funcionaba correctamente dentro de su contenedor (probado con `curl localhost/`), pero Traefik no podía enrutar tráfico hacia ella.
+
+**Causa Raíz:**
+1. El `docker-compose.yml` usaba una red `bridge` personalizada (`nexacore`) para los servicios `app` y `mysql`
+2. Traefik (`dokploy-traefik`) está conectado a la red `dokploy-network` que es de tipo **overlay** (Docker Swarm), no bridge
+3. Al estar en redes distintas y de tipos incompatibles, Traefik no podía alcanzar el contenedor `nexacore_app` para enrutar las peticiones HTTP
+
+**Solución Aplicada:**
+1. Se eliminó la red `bridge` personalizada `nexacore`
+2. Ambos servicios (`app` y `mysql`) se conectaron directamente a la red externa `dokploy-network` (overlay)
+3. Se eliminó el mapeo explícito del puerto `3306` de MySQL — ya no es necesario porque `app` se conecta a `mysql` internamente por Docker DNS
+4. Se eliminó la sección `ports` del servicio `app` (ya removida en INC-045)
+
+**Archivos Modificados:**
+- `docker-compose.yml`
 
 **Estado:** Cerrado
