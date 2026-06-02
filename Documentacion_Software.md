@@ -217,6 +217,8 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 24 | **INC-041**: Capturar fecha real de activación del PECEM y actualizar fecha_cruce_estimada | Alta | Cerrado |
 | 25 | **INC-042**: Containerización Docker completa para despliegue en VPS con dockploy | Alta | Cerrado |
 | 26 | **INC-043**: Corrección de build Docker — eliminación de dependencia imagick innecesaria | Media | Cerrado |
+| 27 | **INC-044**: Conflicto de puerto 80 en deploy Docker — limpieza de contenedores previos | Media | Cerrado |
+| 28 | **INC-045**: Eliminación de mapeo directo de puertos — delegar ruteo a Traefik de dockploy | Media | Cerrado |
 
 ---
 
@@ -1161,5 +1163,64 @@ Se eliminó `imagick` del `pecl install` y del `docker-php-ext-enable` en el Doc
 
 **Archivos Modificados:**
 - `Dockerfile`
+
+**Estado:** Cerrado
+
+---
+
+### INC-044: Conflicto de Puerto 80 en Deploy Docker — Limpieza de Contenedores Previos
+
+**Fecha:** 2026-06-01
+**Severidad:** Media
+**Módulo:** Infraestructura / Docker
+
+**Problema:**
+Al hacer redeploy en dockploy, el nuevo contenedor fallaba con:
+```
+Bind for :::80 failed: port is already allocated
+```
+El puerto 80 del host ya estaba ocupado, impidiendo que el nuevo contenedor se levantara.
+
+**Causa Raíz:**
+Contenedores Docker de deploys anteriores quedaron corriendo en el VPS, manteniendo el bind del puerto 80. También es posible que `nginx` o `apache2` del sistema operativo anfitrión estuvieran escuchando en el puerto 80.
+
+**Solución Aplicada:**
+Procedimiento de limpieza manual desde SSH en el VPS antes del redeploy:
+
+1. Identificar proceso en puerto 80: `sudo lsof -i :80`
+2. Detener y eliminar contenedores viejos: `docker stop/rm nexacore_app nexacore_mysql`
+3. Si es nginx/apache del host: `sudo systemctl stop nginx/apache2`
+4. Limpiar redes Docker huérfanas: `docker network prune -f`
+5. Redeploy desde dockploy
+
+**Prevención futura:** En el `docker-compose.yml`, el puerto se mapea como `"80:80"`. Para evitar este conflicto en redeploys, dockploy debería ejecutar `docker compose down` antes de `docker compose up -d`. Si el problema persiste, se puede cambiar a un puerto alternativo (ej. `"8080:80"`) y configurar dockploy para proxy inverso en ese puerto.
+
+**Estado:** Cerrado
+
+---
+
+### INC-045: Eliminación de Mapeo Directo de Puertos — Delegar Ruteo a Traefik de Dockploy
+
+**Fecha:** 2026-06-01
+**Severidad:** Media
+**Módulo:** Infraestructura / Docker
+
+**Problema:**
+El `docker-compose.yml` mapeaba los puertos `80:80` y `443:443` directamente desde el contenedor `app` al host. Esto generaba conflicto con Traefik (`dokploy-traefik`), el proxy inverso nativo de dockploy que ya ocupa los puertos 80 y 443 del VPS para enrutar tráfico a todos los servicios.
+
+**Causa Raíz:**
+Dockploy ya incluye Traefik como reverse proxy que escucha en 80/443 y enruta por dominio a cada servicio. Al intentar bindear manualmente `80:80` en el compose, se produce colisión de puertos con el Traefik del sistema.
+
+**Solución Aplicada:**
+Se eliminó la sección `ports` del servicio `app` en `docker-compose.yml`. El contenedor ahora solo expone su puerto 80 internamente en la red Docker `nexacore`. Traefik se encarga del resto:
+
+- En la UI de dockploy, en la pestaña **Domains** del servicio, se asigna un dominio (o IP) al servicio `app` en puerto interno `80`
+- Traefik genera automáticamente las rutas y certificados SSL sin conflicto de puertos
+
+**Archivos Modificados:**
+- `docker-compose.yml`
+
+**Configuración requerida en dockploy:**
+- Pestaña Domains → Service: `app`, Port: `80`, Domain: `76.13.127.66` (o dominio propio)
 
 **Estado:** Cerrado

@@ -3,9 +3,6 @@ services:
     build: .
     container_name: nexacore_app
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - storage_data:/var/www/html/storage/app
     environment:
