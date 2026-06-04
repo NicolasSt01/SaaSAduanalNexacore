@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\TenantCapabilityService;
+use App\Mail\WelcomeMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class TenantController extends Controller
 {
@@ -160,6 +164,36 @@ class TenantController extends Controller
         }
 
         return redirect()->route('admin.tenants.show', $tenant->id)->with('success', $message);
+    }
+
+    public function createUser(Request $request, Tenant $tenant)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'role' => 'required|in:admin,admin_n2,documentador',
+        ]);
+
+        $password = Str::random(12);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($password),
+            'role' => $request->role,
+            'tenant_id' => $tenant->id,
+            'active' => true,
+            'must_change_password' => true,
+        ]);
+
+        try {
+            Mail::to($user->email)->send(new WelcomeMail($user, $password, $tenant));
+        } catch (\Exception $e) {
+            \Log::error('Error enviando email de bienvenida', ['error' => $e->getMessage()]);
+        }
+
+        return redirect()->route('admin.tenants.show', $tenant->id)
+            ->with('success', "Usuario {$user->name} creado exitosamente. Se envió email de bienvenida.");
     }
 
     /**

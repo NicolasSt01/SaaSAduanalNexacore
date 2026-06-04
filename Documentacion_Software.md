@@ -224,7 +224,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 31 | **INC-048**: Corrección de seeder DatabaseSeeder — eliminación de User::factory() que requiere Faker en producción | Alta | Cerrado |
 | 32 | **INC-049**: Alerta de conexión no segura en formularios HTTP — habilitar HTTPS con Let's Encrypt | Alta | Cerrado |
 | 33 | **INC-050**: Superadmin no puede suspender/bloquear una agencia (Tenant) | Alta | Cerrado |
-| 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Pendiente |
+| 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Cerrado |
 | 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Pendiente |
 
 ---
@@ -1425,7 +1425,26 @@ Desde el panel de superadmin no existe la funcionalidad para crear manualmente u
 - `resources/views/admin/tenants/show.blade.php` — Sección de creación de usuario
 - `routes/web.php` — Ruta POST
 
-**Estado:** Pendiente
+**Solución Aplicada:**
+
+1. **`TenantController::createUser(Request, Tenant)`:** Valida nombre, email (único) y rol (`admin`, `admin_n2`, `documentador`). Genera contraseña aleatoria de 12 caracteres con `Str::random(12)`. Crea el usuario con `tenant_id`, `active = true`, `must_change_password = true`. Envía email de bienvenida con credenciales.
+
+2. **`WelcomeMail`:** Mailable con template Markdown que incluye nombre del tenant, email del usuario, contraseña temporal y botón de acceso al login. La contraseña se muestra en un panel destacado con formato monospace.
+
+3. **Vista `show.blade.php`:** Botón "Crear Usuario" que despliega un formulario colapsable con campos: Nombre, Email, Rol (select). Al enviar, se crea el usuario y se envía el email. Texto informativo: "Se generará una contraseña aleatoria y se enviará por email."
+
+4. **Ruta:** `POST /nexacore-admin/tenants/{tenant}/users` con nombre `admin.tenants.users.store`.
+
+5. **Template `emails/welcome.blade.php`:** Email Markdown con panel de credenciales, botón de login y nota sobre cambio de contraseña obligatorio al primer acceso.
+
+**Archivos Modificados:**
+- `app/Http/Controllers/Admin/TenantController.php` — imports + `createUser()`
+- `app/Mail/WelcomeMail.php` — nuevo
+- `resources/views/emails/welcome.blade.php` — nuevo
+- `resources/views/admin/tenants/show.blade.php` — formulario colapsable
+- `routes/web.php` — ruta POST
+
+**Estado:** Cerrado
 
 ---
 

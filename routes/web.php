@@ -137,6 +137,9 @@ Route::prefix('nexacore-admin')->name('admin.')->middleware(['auth', 'super_admi
     // Suspender / Reactivar tenant
     Route::patch('/tenants/{tenant}/toggle-status', [TenantController::class, 'toggleStatus'])->name('tenants.toggle-status');
 
+    // Crear usuario para tenant
+    Route::post('/tenants/{tenant}/users', [TenantController::class, 'createUser'])->name('tenants.users.store');
+
     // --- Capacidades y Límites del Tenant ---
     Route::get('/tenants/{tenant}/capabilities', [TenantController::class, 'capabilities'])->name('tenants.capabilities');
     Route::put('/tenants/{tenant}/capabilities', [TenantController::class, 'updateCapabilities'])->name('tenants.capabilities.update');

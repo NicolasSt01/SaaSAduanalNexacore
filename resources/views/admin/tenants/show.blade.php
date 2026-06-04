@@ -173,6 +173,46 @@
                 </span>
             </div>
 
+            <div class="mb-4">
+                <button type="button" onclick="document.getElementById('createUserForm').classList.toggle('hidden')"
+                    class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold transition">
+                    <i class="fas fa-user-plus mr-1"></i> Crear Usuario
+                </button>
+
+                <div id="createUserForm" class="hidden mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <form method="POST" action="{{ route('admin.tenants.users.store', $tenant->id) }}">
+                        @csrf
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Nombre</label>
+                                <input type="text" name="name" required placeholder="Nombre completo"
+                                    class="w-full rounded-lg border-gray-300 text-sm px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Email</label>
+                                <input type="email" name="email" required placeholder="usuario@ejemplo.com"
+                                    class="w-full rounded-lg border-gray-300 text-sm px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Rol</label>
+                                <select name="role" required class="w-full rounded-lg border-gray-300 text-sm px-3 py-2">
+                                    <option value="admin">Admin</option>
+                                    <option value="admin_n2">Admin N2</option>
+                                    <option value="documentador">Documentador</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit"
+                                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition">
+                                    <i class="fas fa-check mr-1"></i> Crear y Enviar Email
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">Se generará una contraseña aleatoria y se enviará por email.</p>
+                    </form>
+                </div>
+            </div>
+
             <div class="overflow-x-auto flex-1">
                 <table class="w-full whitespace-nowrap">
                     <thead
