@@ -20,7 +20,7 @@ class WelcomeMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Bienvenido a NexaCore — ' . $this->tenant->nombre_empresa)
+        return $this->subject('Bienvenido a NexaCore Aduanal')
             ->markdown('emails.welcome', [
                 'user' => $this->user,
                 'password' => $this->password,

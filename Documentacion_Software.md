@@ -226,6 +226,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 33 | **INC-050**: Superadmin no puede suspender/bloquear una agencia (Tenant) | Alta | Cerrado |
 | 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Cerrado |
 | 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Pendiente |
+| 36 | **INC-053**: Branding de emails de bienvenida + protección de rol super_admin | Media | Cerrado |
 
 ---
 
@@ -1515,3 +1516,33 @@ No existe un sistema para gestionar la facturación y pagos de cada tenant. Se n
 - `routes/web.php`
 
 **Estado:** Pendiente
+
+---
+
+### INC-053: Branding de Emails de Bienvenida + Protección de Rol super_admin
+
+**Fecha:** 2026-06-02
+**Severidad:** Media
+**Módulo:** Notificaciones / Seguridad
+
+**Problema:**
+1. El email de bienvenida mostraba el nombre del tenant (ej. "Portal Crosspoint") en lugar del branding de la plataforma "NexaCore Aduanal"
+2. Existía el riesgo de que se crearan usuarios con rol `super_admin` para tenants, comprometiendo la seguridad del sistema multi-tenant
+
+**Solución Aplicada:**
+
+1. **Branding de email:**
+   - Asunto cambiado de `"Bienvenido a NexaCore — {tenant}"` a `"Bienvenido a NexaCore Aduanal"`
+   - Template HTML actualizado con branding consistente: "NexaCore Aduanal" en título y pie
+   - Se agregó email de contacto `contacto@nexacore.com.mx` en el pie
+
+2. **Protección de rol super_admin:**
+   - `User::boot()` — Guardia `creating`: si se intenta crear usuario con rol `super_admin` sin ser super_admin autenticado, lanza excepción. Seeders (sin sesión) sí pueden.
+   - `User::boot()` — Guardia `updating`: si se intenta cambiar rol a `super_admin` sin ser super_admin, lanza excepción
+
+**Archivos Modificados:**
+- `app/Mail/WelcomeMail.php`
+- `resources/views/emails/welcome.blade.php`
+- `app/Models/User.php`
+
+**Estado:** Cerrado

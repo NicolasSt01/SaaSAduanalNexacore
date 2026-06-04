@@ -60,6 +60,34 @@ class User extends Authenticatable implements MustVerifyEmail
             'password_changed_at' => 'datetime',
         ];
     }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            if ($user->role !== 'super_admin') return;
+            try {
+                if (auth()->check() && !auth()->user()->isSuperAdmin()) {
+                    throw new \Exception('No se puede crear un usuario con rol super_admin.');
+                }
+            } catch (\Throwable $e) {
+                if ($e->getMessage() === 'No se puede crear un usuario con rol super_admin.') throw $e;
+            }
+        });
+
+        static::updating(function ($user) {
+            if (!$user->isDirty('role') || $user->role !== 'super_admin') return;
+            try {
+                if (auth()->check() && !auth()->user()->isSuperAdmin()) {
+                    throw new \Exception('No se puede asignar el rol super_admin a un usuario.');
+                }
+            } catch (\Throwable $e) {
+                if ($e->getMessage() === 'No se puede asignar el rol super_admin a un usuario.') throw $e;
+            }
+        });
+    }
+
     // Relación con clientes (para usuarios tipo cliente)
     public function cliente()
     {
