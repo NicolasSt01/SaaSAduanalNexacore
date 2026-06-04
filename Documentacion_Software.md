@@ -223,7 +223,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 30 | **INC-047**: Corrección de seeder InitialTenant — columna tenant_id inexistente en reportes_acceso | Alta | Cerrado |
 | 31 | **INC-048**: Corrección de seeder DatabaseSeeder — eliminación de User::factory() que requiere Faker en producción | Alta | Cerrado |
 | 32 | **INC-049**: Alerta de conexión no segura en formularios HTTP — habilitar HTTPS con Let's Encrypt | Alta | Cerrado |
-| 33 | **INC-050**: Superadmin no puede suspender/bloquear una agencia (Tenant) | Alta | Pendiente |
+| 33 | **INC-050**: Superadmin no puede suspender/bloquear una agencia (Tenant) | Alta | Cerrado |
 | 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Pendiente |
 | 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Pendiente |
 
@@ -1373,7 +1373,34 @@ Desde el panel de superadmin no es posible eliminar, dar de baja o bloquear una 
 - `app/Http/Middleware/` — Verificar tenant activo en login
 - `resources/views/admin/tenants/` — Botones de suspender/reactivar
 
-**Estado:** Pendiente
+**Solución Aplicada:**
+
+1. **`Tenant` Model** — Nuevos métodos:
+   - `isActive()`: retorna `true` si `estado === 'activo'`
+   - `isSuspended()`: retorna `true` si `estado === 'suspendido'`
+   - `suspend()`: cambia estado a `'suspendido'` y guarda
+   - `reactivate()`: cambia estado a `'activo'` y guarda
+
+2. **`TenantController::toggleStatus(Tenant)`** — Nuevo método que alterna entre suspender y reactivar según el estado actual del tenant. Retorna mensaje descriptivo.
+
+3. **Ruta** — `PATCH /nexacore-admin/tenants/{tenant}/toggle-status` con nombre `admin.tenants.toggle-status`.
+
+4. **`AuthController::login()`** — Después de verificar que el usuario está activo, se agregó verificación de tenant: si el tenant está suspendido, se cierra sesión con mensaje "Tu agencia ha sido suspendida".
+
+5. **`CheckTenantActive` middleware** — Nuevo middleware registrado en el grupo `web`. En cada petición verifica que el tenant del usuario autenticado no esté suspendido. Los superadmins están exentos (pueden acceder aunque el tenant esté suspendido).
+
+6. **Vista `show.blade.php`** — Botón rojo "Suspender Agencia" (con confirmación) si está activa, o botón verde "Reactivar Agencia" si está suspendida.
+
+**Archivos Modificados:**
+- `app/Models/Tenant.php` — `isActive()`, `isSuspended()`, `suspend()`, `reactivate()`
+- `app/Http/Controllers/Admin/TenantController.php` — `toggleStatus()`
+- `app/Http/Controllers/AuthController.php` — verificación de tenant suspendido en login
+- `app/Http/Middleware/CheckTenantActive.php` — nuevo middleware
+- `app/Http/Kernel.php` — registro del middleware en grupo `web`
+- `routes/web.php` — ruta `tenants.toggle-status`
+- `resources/views/admin/tenants/show.blade.php` — botones suspender/reactivar
+
+**Estado:** Cerrado
 
 ---
 

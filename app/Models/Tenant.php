@@ -154,6 +154,38 @@ class Tenant extends Model
     }
 
     /**
+     * Verifica si el tenant está activo.
+     */
+    public function isActive(): bool
+    {
+        return $this->estado === 'activo';
+    }
+
+    /**
+     * Verifica si el tenant está suspendido.
+     */
+    public function isSuspended(): bool
+    {
+        return $this->estado === 'suspendido';
+    }
+
+    /**
+     * Suspender el tenant — bloquea acceso a todos sus usuarios.
+     */
+    public function suspend(): void
+    {
+        $this->update(['estado' => 'suspendido']);
+    }
+
+    /**
+     * Reactivar el tenant — restaura acceso a todos sus usuarios.
+     */
+    public function reactivate(): void
+    {
+        $this->update(['estado' => 'activo']);
+    }
+
+    /**
      * Verifica si el tenant tiene habilitadas las notificaciones por WhatsApp.
      * Controlado por el superadmin desde el panel de capabilities.
      * 

@@ -17,6 +17,20 @@
                 class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded shadow-sm transition">
                 <i class="fas fa-edit"></i> Editar Datos Básicos
             </a>
+            <form method="POST" action="{{ route('admin.tenants.toggle-status', $tenant->id) }}" class="inline">
+                @csrf
+                @method('PATCH')
+                @if($tenant->isActive())
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow-sm transition"
+                    onclick="return confirm('¿Suspender esta agencia? Todos los usuarios perderán acceso inmediatamente.')">
+                    <i class="fas fa-ban"></i> Suspender Agencia
+                </button>
+                @else
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow-sm transition">
+                    <i class="fas fa-check-circle"></i> Reactivar Agencia
+                </button>
+                @endif
+            </form>
         </div>
     </div>
 

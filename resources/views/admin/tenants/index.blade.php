@@ -59,6 +59,11 @@
                             class="inline-flex items-center gap-1 text-green-600 text-xs font-semibold bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Activo
                         </span>
+                        @elseif($tenant->estado === 'suspendido')
+                        <span
+                            class="inline-flex items-center gap-1 text-amber-600 text-xs font-semibold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Suspendido
+                        </span>
                         @else
                         <span
                             class="inline-flex items-center gap-1 text-red-600 text-xs font-semibold bg-red-50 px-2.5 py-1 rounded-full border border-red-200">

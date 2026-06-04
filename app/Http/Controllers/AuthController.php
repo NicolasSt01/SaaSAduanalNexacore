@@ -61,6 +61,11 @@ class AuthController extends Controller
                 return redirect()->route('inactive.user');
             }
 
+            if ($user->tenant && $user->tenant->isSuspended()) {
+                Auth::logout();
+                return redirect()->route('login')->with('error', 'Tu agencia ha sido suspendida. Contacta a soporte para más información.');
+            }
+
             // Registrar la sesión activa para forzar sesión única por usuario
             $user->update(['active_session_id' => session()->getId()]);
 

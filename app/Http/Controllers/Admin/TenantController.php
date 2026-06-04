@@ -27,7 +27,7 @@ class TenantController extends Controller
             'slug' => 'required|unique:tenants|alpha_dash',
             'correo_admin' => 'required|email',
             'plan' => 'required|in:basico,profesional,enterprise',
-            'estado' => 'required|in:activo,inactivo'
+            'estado' => 'required|in:activo,inactivo,suspendido'
         ]);
 
         $data = $request->all();
@@ -72,7 +72,7 @@ class TenantController extends Controller
             'slug' => 'required|alpha_dash|unique:tenants,slug,' . $tenant->id,
             'correo_admin' => 'required|email',
             'plan' => 'required|in:basico,profesional,enterprise',
-            'estado' => 'required|in:activo,inactivo'
+            'estado' => 'required|in:activo,inactivo,suspendido'
         ]);
 
         $tenant->update($request->all());
@@ -147,6 +147,19 @@ class TenantController extends Controller
         $user->save();
 
         return redirect()->route('admin.tenants.show', $tenant_id)->with('success', 'El estado del usuario ha sido actualizado correctamente.');
+    }
+
+    public function toggleStatus(Tenant $tenant)
+    {
+        if ($tenant->isActive()) {
+            $tenant->suspend();
+            $message = "Agencia {$tenant->nombre_empresa} suspendida. Todos sus accesos han sido bloqueados.";
+        } else {
+            $tenant->reactivate();
+            $message = "Agencia {$tenant->nombre_empresa} reactivada. Todos sus accesos han sido restaurados.";
+        }
+
+        return redirect()->route('admin.tenants.show', $tenant->id)->with('success', $message);
     }
 
     /**

@@ -23,6 +23,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\SingleSessionGuard::class,
+            \App\Http\Middleware\CheckTenantActive::class,
         ],
 
         'api' => [
@@ -52,6 +53,7 @@ class Kernel extends HttpKernel
         'register.access' => \App\Http\Middleware\RegisterAccess::class,
         'role' => \App\Http\Middleware\CheckRole::class,
         'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,
+        'check.tenant.active' => \App\Http\Middleware\CheckTenantActive::class,
         'single.session' => \App\Http\Middleware\SingleSessionGuard::class,
 
         // Middlewares para trial y registro público
