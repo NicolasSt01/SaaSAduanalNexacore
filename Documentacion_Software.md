@@ -229,6 +229,9 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 36 | **INC-053**: Branding de emails de bienvenida + protección de rol super_admin | Media | Cerrado |
 | 37 | **INC-054**: Registro público de empresas — Landing de registro con logo NexaCore y captura de datos empresa + admin | Alta | Cerrado |
 | 38 | **INC-055**: Trial de 15 días + fecha de corte visible en superadmin + notificaciones de vencimiento | Alta | Cerrado |
+| 39 | **INC-056**: Sesión única por usuario — cierre automático al iniciar sesión en otro dispositivo | Alta | Cerrado |
+| 40 | **INC-057**: Deshabilitar módulo de Finanzas del tenant para futuras mejoras | Media | Cerrado |
+| 41 | **INC-058**: Tenants de prueba sin reportes habilitados — configuración por defecto en trial | Alta | Cerrado |
 
 ---
 
@@ -1699,5 +1702,136 @@ docker exec nexacore_app php artisan config:cache
 - `resources/views/auth/public-register.blade.php` — Textos actualizados a 15 días
 - `resources/views/admin/tenants/index.blade.php` — Nueva columna "Fecha de Corte" con días restantes
 - `app/Jobs/VerificarTenantsVencidos.php` — Consulta ampliada, notificaciones in-app, títulos agregados
+
+**Estado:** Cerrado
+
+---
+
+### INC-056: Sesión Única por Usuario — Cierre Automático al Iniciar Sesión en Otro Dispositivo
+
+**Fecha:** 2026-06-04
+**Severidad:** Alta
+**Módulo:** Autenticación / Seguridad
+
+**Problema:**
+El sistema permitía que un mismo usuario tuviera múltiples sesiones activas simultáneamente en distintos dispositivos o navegadores. Esto representa un riesgo de seguridad y uso indebido de licencias, ya que una sola cuenta podría ser compartida entre varias personas.
+
+**Solución Aplicada:**
+
+1. **Middleware `SingleSessionGuard`:**
+   - Registrado en el grupo `web` del `Kernel.php`, se ejecuta en cada request autenticada.
+   - Compara `active_session_id` del usuario con el ID de la sesión actual (`session()->getId()`).
+   - Si no coinciden (otra sesión fue registrada después), cierra la sesión actual, invalida la sesión y redirige al login con el mensaje: "Tu sesión fue cerrada porque se inició sesión en otro dispositivo."
+
+2. **`AuthController::login()`:**
+   - Después de autenticación exitosa y validaciones (usuario activo, tenant no suspendido), guarda el ID de la nueva sesión: `$user->update(['active_session_id' => session()->getId()])`.
+   - Esto sobrescribe cualquier sesión previa, invalidándola en el próximo request del dispositivo anterior.
+
+3. **`AuthController::logout()`:**
+   - Al cerrar sesión voluntariamente, limpia `active_session_id` a `null`.
+
+4. **Migración `2026_03_31_195800_add_active_session_id_to_users_table`:**
+   - Columna `active_session_id` (string 120, nullable) agregada a la tabla `users`.
+
+5. **Modelo `User`:**
+   - `active_session_id` incluido en `$fillable` para permitir actualización masiva.
+
+**Flujo:**
+1. Usuario A inicia sesión en PC1 → se guarda `active_session_id = session_PC1`
+2. Usuario A inicia sesión en PC2 → se guarda `active_session_id = session_PC2` (sobrescribe)
+3. Usuario A hace cualquier acción en PC1 → `SingleSessionGuard` detecta que `session_PC1 ≠ session_PC2` → cierra sesión en PC1 con mensaje
+4. Usuario A sigue trabajando normalmente en PC2
+
+**Archivos Modificados:**
+- `app/Http/Middleware/SingleSessionGuard.php` — Middleware de verificación de sesión única
+- `app/Http/Controllers/AuthController.php` — Registro de `active_session_id` en login, limpieza en logout
+- `app/Http/Kernel.php` — Registro del middleware en grupo `web`
+- `app/Models/User.php` — `active_session_id` en `$fillable`
+- `database/migrations/2026_03_31_195800_add_active_session_id_to_users_table.php` — Columna nueva
+
+**Estado:** Cerrado
+
+---
+
+### INC-057: Deshabilitar Módulo de Finanzas del Tenant para Futuras Mejoras
+
+**Fecha:** 2026-06-04
+**Severidad:** Media
+**Módulo:** Finanzas / Navegación
+
+**Problema:**
+El módulo de Finanzas del tenant (`/finanzas`) está disponible en el navbar pero no está completamente funcional ni integrado con el nuevo sistema de facturación SaaS del superadmin. Se decide deshabilitar temporalmente para evitar confusión y dejarlo para futuras mejoras.
+
+**Nota:** El módulo de Finanzas del **superadmin** (`/nexacore-admin/finanzas`) sigue activo y funcional para gestión de planes, pagos y facturación de tenants.
+
+**Solución Aplicada:**
+
+1. **Navbar desktop (`layouts/app.blade.php` líneas 370-373):**
+   - Comentado el bloque `@if(in_array(auth()->user()->role, ['admin', 'finanzas']))` que mostraba el enlace "Finanzas" en el navbar desktop.
+   - Agregado comentario `INC-057: Finanzas deshabilitado temporalmente para futuras mejoras`.
+
+2. **Menú móvil (`layouts/app.blade.php` líneas 532-535):**
+   - Comentado el mismo bloque en el menú móvil responsive.
+   - Agregado comentario `INC-057: Finanzas deshabilitado temporalmente para futuras mejoras`.
+
+3. **Rutas preservadas:**
+   - Las rutas en `routes/web.php` bajo el prefijo `/finanzas` se mantienen activas pero inaccesibles desde la UI.
+   - Esto permite reactivar el módulo fácilmente en el futuro sin necesidad de reescribir código.
+
+**Archivos Modificados:**
+- `resources/views/layouts/app.blade.php` — Enlaces "Finanzas" comentados en navbar desktop y menú móvil
+
+**Reactivación futura:**
+Para reactivar el módulo, simplemente descomentar los bloques `@if(in_array(auth()->user()->role, ['admin', 'finanzas']))` en `layouts/app.blade.php` (líneas 370-373 y 532-535).
+
+**Estado:** Cerrado
+
+---
+
+### INC-058: Tenants de Prueba sin Reportes Habilitados — Configuración por Defecto en Trial
+
+**Fecha:** 2026-06-04
+**Severidad:** Alta
+**Módulo:** Tenant / Trial / Reportes
+
+**Problema:**
+Cuando un usuario se registraba en el sistema a través del formulario público (`/registro`), el método `Tenant::applyTrialConfig()` creaba la configuración inicial del tenant pero **no incluía la clave `reportes.enabled`**. Esto provocaba que los tenants de prueba nacieran sin ningún reporte habilitado, bloqueando el acceso a la sección de reportes (`/reportes`) y mostrando el mensaje de "upgrade" en lugar de los reportes disponibles.
+
+El middleware `CheckReportAccess` valida que el tenant tenga el reporte en `configuracion.reportes.enabled`, y al no existir esa clave, todos los reportes quedaban bloqueados por defecto.
+
+**Causa Raíz:**
+El array de configuración en `applyTrialConfig()` solo incluía:
+- `bot` (modo manual, 20 consultas)
+- `limites` (recursos y funcionalidades)
+- `features_enabled` (email_notifications)
+
+Pero faltaba la clave `reportes` con los arrays `enabled` y `disabled`.
+
+**Solución Aplicada:**
+
+1. **Actualización de `Tenant::applyTrialConfig()`:**
+   - Agregada la clave `reportes` al array de configuración por defecto.
+   - Reportes habilitados para trial: `clientes`, `operacion_semanal`, `aduanas`, `pedimentos` (4 reportes básicos).
+   - Reportes deshabilitados para trial: `remesas`, `clientes_pdf`, `patron_clientes`, `financiero`, `logistica` (5 reportes avanzados reservados para planes pagados).
+
+2. **Estrategia de reportes en trial:**
+   - Los 4 reportes habilitados permiten al usuario evaluar la capacidad analítica del sistema.
+   - Los 5 reportes deshabilitados incentivan el upgrade a un plan pagado.
+   - El superadmin puede habilitar/deshabilitar reportes manualmente desde `/nexacore-admin/tenants/{id}/capabilities` si es necesario.
+
+3. **Tenants existentes:**
+   - Los tenants creados antes de este fix no tienen la clave `reportes` en su configuración.
+   - Se pueden actualizar manualmente desde el panel de capabilities o ejecutar un script de migración masiva.
+
+**Configuración de reportes en trial:**
+```php
+'reportes' => [
+    'enabled' => ['clientes', 'operacion_semanal', 'aduanas', 'pedimentos'],
+    'disabled' => ['remesas', 'clientes_pdf', 'patron_clientes', 'financiero', 'logistica'],
+],
+```
+
+**Archivos Modificados:**
+- `app/Models/Tenant.php` — Método `applyTrialConfig()` actualizado con clave `reportes` y reportes por defecto
 
 **Estado:** Cerrado

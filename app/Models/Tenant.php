@@ -770,6 +770,10 @@ class Tenant extends Model
                     'whatsapp_mes' => 0,
                 ],
             ],
+            'reportes' => [
+                'enabled' => ['clientes', 'operacion_semanal', 'aduanas', 'pedimentos'],
+                'disabled' => ['remesas', 'clientes_pdf', 'patron_clientes', 'financiero', 'logistica'],
+            ],
             'features_enabled' => ['email_notifications'],
         ];
 
