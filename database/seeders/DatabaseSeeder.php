@@ -14,12 +14,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            InitialAduanaSeeder::class ,
-            InitialTenantSeeder::class ,
-            SuperAdminSeeder::class ,
-            AdminUserSeeder::class ,
-            ExpedienteSeeder::class ,
-            PlanSeeder::class ,
+            InitialAduanaSeeder::class,
+                //InitialTenantSeeder::class ,
+            SuperAdminSeeder::class,
+            AdminUserSeeder::class
+            //ExpedienteSeeder::class ,
+            //PlanSeeder::class ,
         ]);
     }
 }

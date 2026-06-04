@@ -736,7 +736,7 @@ class Tenant extends Model
         }
 
         $this->trial_started_at = now();
-        $this->trial_ends_at = now()->addDays(7);
+        $this->trial_ends_at = now()->addDays(15);
         $this->es_trial = true;
         $this->save();
     }
@@ -780,7 +780,7 @@ class Tenant extends Model
         $this->estado = 'activo';
         $this->es_trial = true;
         $this->fecha_inicio = now();
-        $this->fecha_vencimiento = now()->addDays(7);
+        $this->fecha_vencimiento = now()->addDays(15);
     }
 
     public function plan()

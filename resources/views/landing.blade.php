@@ -85,10 +85,7 @@
     <header class="fixed top-0 w-full z-50 py-4 transition-all duration-300" id="navbar">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
             <a href="/" class="flex items-center gap-3">
-                <div
-                    class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-600/30">
-                    <i class="fas fa-microchip text-lg"></i>
-                </div>
+                <img src="https://nexacore.com.mx/LogoNexaCore.png" alt="NexaCore" class="h-10 w-auto">
                 <span class="text-xl font-extrabold tracking-tight text-gray-900 group" id="brand-name">
                     NexaCore<span class="text-indigo-600">.Aduanal</span>
                 </span>
@@ -182,7 +179,7 @@
                             Acceder al Sistema
                         </button>
                     </form>
-                    <p class="text-center mt-8 text-xs text-gray-500 font-semibold">¿Nuevo en NexaCore? <a href="#"
+                    <p class="text-center mt-8 text-xs text-gray-500 font-semibold">¿Nuevo en NexaCore? <a href="{{ route('public.form') }}"
                             class="text-indigo-400 underline underline-offset-4">Solicitar Demo</a></p>
                 </div>
             </div>
@@ -468,9 +465,7 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
                 <div class="col-span-1 md:col-span-2">
                     <div class="flex items-center gap-3 mb-10">
-                        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-                            <i class="fas fa-microchip text-xs"></i>
-                        </div>
+                        <img src="https://nexacore.com.mx/LogoNexaCore.png" alt="NexaCore" class="h-8 w-auto">
                         <span class="text-lg font-black tracking-tight text-gray-900">NexaCore<span
                                 class="text-indigo-600">.Aduanal</span></span>
                     </div>

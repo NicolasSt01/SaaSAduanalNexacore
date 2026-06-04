@@ -23,6 +23,7 @@
                     <th class="px-6 py-4">Subdominio</th>
                     <th class="px-6 py-4">Plan SaaS</th>
                     <th class="px-6 py-4 text-center">Usuarios</th>
+                    <th class="px-6 py-4 text-center">Fecha de Corte</th>
                     <th class="px-6 py-4 text-center">Estado</th>
                     <th class="px-6 py-4 text-center">Acciones</th>
                 </tr>
@@ -52,6 +53,27 @@
                     </td>
                     <td class="px-6 py-4 text-center text-gray-600 font-medium">
                         {{ $tenant->users_count }}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        @if($tenant->fecha_vencimiento)
+                            @php
+                                $diasRestantes = now()->startOfDay()->diffInDays($tenant->fecha_vencimiento, false);
+                            @endphp
+                            <div class="text-xs">
+                                <span class="font-bold text-gray-700 block">{{ $tenant->fecha_vencimiento->format('d/m/Y') }}</span>
+                                @if($diasRestantes < 0)
+                                    <span class="text-red-600 font-bold">Vencido ({{ abs($diasRestantes) }}d)</span>
+                                @elseif($diasRestantes <= 3)
+                                    <span class="text-red-600 font-bold">{{ $diasRestantes }}d restantes</span>
+                                @elseif($diasRestantes <= 7)
+                                    <span class="text-amber-600 font-bold">{{ $diasRestantes }}d restantes</span>
+                                @else
+                                    <span class="text-green-600">{{ $diasRestantes }}d restantes</span>
+                                @endif
+                            </div>
+                        @else
+                            <span class="text-gray-400 text-xs">Sin fecha</span>
+                        @endif
                     </td>
                     <td class="px-6 py-4 text-center">
                         @if($tenant->estado === 'activo')
@@ -88,7 +110,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                    <td colspan="8" class="px-6 py-10 text-center text-gray-500">
                         <div class="flex flex-col items-center">
                             <i class="fas fa-building text-gray-300 text-4xl mb-3"></i>
                             <p class="text-lg">No hay agencias registradas aún.</p>

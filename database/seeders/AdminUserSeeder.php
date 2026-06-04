@@ -11,8 +11,8 @@ class AdminUserSeeder extends Seeder
     public function run()
     {
         User::create([
-            'name' => 'Admin CrossPoint',
-            'email' => 'sistemas@crosspoint.com.mx',
+            'name' => 'Admin Demo',
+            'email' => 'demo@admin.com',
             'password' => Hash::make('admin123'),
             'role' => 'admin'
         ]);

@@ -33,6 +33,7 @@ class PublicRegisterController extends Controller
             'nombre_empresa' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'telefono' => 'nullable|string|max:20',
+            'rfc' => 'nullable|string|max:13',
         ]);
 
         // Generar slug único para el tenant
@@ -47,6 +48,7 @@ class PublicRegisterController extends Controller
         $tenant->nombre_empresa = $request->nombre_empresa;
         $tenant->correo_admin = $request->email;
         $tenant->telefono = $request->telefono;
+        $tenant->rfc = $request->rfc;
 
         // Aplicar configuración de trial (incluye fecha_inicio, fecha_vencimiento, etc.)
         $tenant->applyTrialConfig();

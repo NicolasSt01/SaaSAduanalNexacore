@@ -227,6 +227,8 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Cerrado |
 | 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Cerrado |
 | 36 | **INC-053**: Branding de emails de bienvenida + protección de rol super_admin | Media | Cerrado |
+| 37 | **INC-054**: Registro público de empresas — Landing de registro con logo NexaCore y captura de datos empresa + admin | Alta | Cerrado |
+| 38 | **INC-055**: Trial de 15 días + fecha de corte visible en superadmin + notificaciones de vencimiento | Alta | Cerrado |
 
 ---
 
@@ -1613,5 +1615,89 @@ docker exec nexacore_app php artisan config:cache
 - `app/Mail/WelcomeMail.php`
 - `resources/views/emails/welcome.blade.php`
 - `app/Models/User.php`
+
+**Estado:** Cerrado
+
+---
+
+### INC-054: Registro Público de Empresas — Landing de Registro con Logo NexaCore y Captura de Datos Empresa + Admin
+
+**Fecha:** 2026-06-04
+**Severidad:** Alta
+**Módulo:** Landing Page / Registro Público
+
+**Problema:**
+1. El logo de la landing page usaba un ícono de Font Awesome (microchip) en lugar del logo oficial de NexaCore.
+2. El enlace "Solicitar Demo" apuntaba a `#` (nulo) en lugar de dirigir al formulario de registro público.
+3. El formulario de registro existente (`/registro`) tenía campos mínimos (nombre, empresa, email, teléfono) pero faltaba el RFC de la empresa.
+4. La vista de registro usaba el layout de la aplicación (`layouts.app`) en lugar de ser una landing page independiente.
+
+**Solución Aplicada:**
+
+1. **Logo actualizado en landing page:**
+   - Navbar: Reemplazado el div con ícono de microchip por `<img src="https://nexacore.com.mx/LogoNexaCore.png">`.
+   - Footer: Mismo cambio de ícono a imagen del logo oficial.
+
+2. **Enlace "Solicitar Demo" corregido:**
+   - Cambiado de `href="#"` a `href="{{ route('public.form') }}"` que dirige a `/registro`.
+
+3. **Vista de registro rediseñada (`public-register.blade.php`):**
+   - Layout independiente (sin `@extends('layouts.app')`) con diseño split-screen: panel izquierdo con beneficios del trial sobre gradiente indigo, panel derecho con formulario.
+   - Logo de NexaCore en ambos paneles (visible en mobile y desktop).
+   - Formulario reorganizado en dos secciones: "Datos de la Empresa" (nombre, RFC, teléfono) y "Datos del Administrador" (nombre completo, email).
+   - Campo RFC agregado (max 13 caracteres, uppercase).
+   - Panel informativo de trial (7 días, sin tarjeta de crédito).
+   - Diseño responsive: split en desktop, stack en mobile.
+
+4. **Controller actualizado (`PublicRegisterController::register()`):**
+   - Validación agregada para `rfc` (nullable, max 13).
+   - Campo `rfc` guardado en el tenant al crear la cuenta.
+
+**Archivos Modificados:**
+- `resources/views/landing.blade.php` — Logo navbar, logo footer, enlace "Solicitar Demo"
+- `resources/views/auth/public-register.blade.php` — Rediseño completo split-screen con campos empresa + admin
+- `app/Http/Controllers/Auth/PublicRegisterController.php` — Validación y guardado de RFC
+
+**Estado:** Cerrado
+
+---
+
+### INC-055: Trial de 15 Días + Fecha de Corte Visible en Superadmin + Notificaciones de Vencimiento
+
+**Fecha:** 2026-06-04
+**Severidad:** Alta
+**Módulo:** Tenant / Trial / Superadmin
+
+**Problema:**
+1. El trial de nuevos registros era de solo 7 días, insuficiente para que las agencias evalúen el sistema.
+2. En el panel de superadmin no se mostraba la fecha de corte/vencimiento de cada tenant.
+3. El job de verificación de tenants vencidos solo revisaba tenants con `saldo_pendiente > 0`, ignorando trials por vencer.
+4. No existían notificaciones in-app para el admin del tenant cuando su licencia estaba por vencer.
+
+**Solución Aplicada:**
+
+1. **Trial extendido a 15 días:**
+   - `Tenant::startTrial()`: `trial_ends_at` cambiado de `now()->addDays(7)` a `now()->addDays(15)`.
+   - `Tenant::applyTrialConfig()`: `fecha_vencimiento` cambiado de `now()->addDays(7)` a `now()->addDays(15)`.
+   - Vista de registro actualizada: textos de "7 días" a "15 días".
+
+2. **Columna "Fecha de Corte" en listado de tenants del superadmin:**
+   - Nueva columna en `tenants/index.blade.php` que muestra:
+     - Fecha de vencimiento formateada (dd/mm/YYYY)
+     - Días restantes con colores: verde (>7d), ámbar (4-7d), rojo (≤3d), "Vencido" si es negativo
+   - Se calcula dinámicamente con `diffInDays()` desde la vista.
+
+3. **Job `VerificarTenantsVencidos` mejorado:**
+   - Ahora consulta todos los tenants activos con `fecha_vencimiento` (no solo los que tienen `saldo_pendiente > 0`).
+   - Envía recordatorios por email a 7, 3 y 1 día antes del vencimiento.
+   - Crea notificaciones in-app (`NotificacionSistema`) a 7, 3, 1 y 0 días con nivel `info`, `warning` o `error` según la urgencia.
+   - Deduplica notificaciones: solo una por tipo por día por tenant.
+   - Suspensión automática cuando `estaVencido()` retorna true (vencido + periodo de gracia agotado).
+
+**Archivos Modificados:**
+- `app/Models/Tenant.php` — `startTrial()` y `applyTrialConfig()` con 15 días
+- `resources/views/auth/public-register.blade.php` — Textos actualizados a 15 días
+- `resources/views/admin/tenants/index.blade.php` — Nueva columna "Fecha de Corte" con días restantes
+- `app/Jobs/VerificarTenantsVencidos.php` — Consulta ampliada, notificaciones in-app, títulos agregados
 
 **Estado:** Cerrado

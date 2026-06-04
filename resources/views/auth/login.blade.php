@@ -55,17 +55,16 @@
             <div class="p-8 sm:p-10">
                 {{-- Header / Logo --}}
                 <div class="flex flex-col items-center mb-8">
-                    <div class="w-24 h-24 mb-6 relative group">
-                        <div class="absolute inset-0 bg-indigo-500 rounded-2xl rotate-6 group-hover:rotate-12 transition duration-300 opacity-20"></div>
-                        <img src="/login-logo.png" 
-                             alt="Logo" 
-                             class="w-full h-full object-cover rounded-2xl shadow-lg relative z-10">
+                    <div class="mb-6">
+                        <img src="https://nexacore.com.mx/LogoNexaCore.png" 
+                             alt="NexaCore" 
+                             class="h-16 w-auto">
                     </div>
                     <div class="text-center">
                         <h1 class="text-2xl font-black text-gray-900 tracking-tight leading-tight">
-                            Control Operaciones
+                            NexaCore<span class="text-indigo-600">.Aduanal</span>
                         </h1>
-                        <p class="text-sm font-bold text-indigo-600 uppercase tracking-widest mt-1">Agencias Aduanales</p>
+                        <p class="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Gestión Inteligente de Operaciones</p>
                     </div>
                 </div>
 
@@ -123,14 +122,14 @@
             {{-- Footer del Card --}}
             <div class="p-6 bg-gray-50 border-t border-gray-100 text-center">
                 <p class="text-xs text-gray-400 font-medium uppercase tracking-tighter">
-                    © {{ date('Y') }} Sistema de Control Aduanal • v2.0
+                    © {{ date('Y') }} NexaCore Aduanal • contacto@nexacore.com.mx
                 </p>
             </div>
         </div>
         
         {{-- Ayuda / Footer externo --}}
         <div class="mt-8 text-center">
-            <p class="text-sm text-gray-500">¿Necesitas ayuda? <a href="#" class="text-indigo-600 font-bold hover:underline">Soporte Técnico</a></p>
+            <p class="text-sm text-gray-500">¿Nuevo en NexaCore? <a href="{{ route('public.form') }}" class="text-indigo-600 font-bold hover:underline">Solicitar Demo</a></p>
         </div>
     </div>
 </div>
