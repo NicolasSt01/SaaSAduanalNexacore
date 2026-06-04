@@ -38,8 +38,8 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('facturas')) {
-            Schema::create('facturas', function (Blueprint $table) {
+        if (!Schema::hasTable('facturas_billing')) {
+            Schema::create('facturas_billing', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
                 $table->foreignId('pago_id')->nullable()->constrained('pagos')->nullOnDelete();
