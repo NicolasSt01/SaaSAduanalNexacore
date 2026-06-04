@@ -222,6 +222,10 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 29 | **INC-046**: Corrección de red Docker — migración a red overlay dokploy-network para conectividad con Traefik | Media | Cerrado |
 | 30 | **INC-047**: Corrección de seeder InitialTenant — columna tenant_id inexistente en reportes_acceso | Alta | Cerrado |
 | 31 | **INC-048**: Corrección de seeder DatabaseSeeder — eliminación de User::factory() que requiere Faker en producción | Alta | Cerrado |
+| 32 | **INC-049**: Alerta de conexión no segura en formularios HTTP — habilitar HTTPS con Let's Encrypt | Alta | Cerrado |
+| 33 | **INC-050**: Superadmin no puede suspender/bloquear una agencia (Tenant) | Alta | Pendiente |
+| 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Pendiente |
+| 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Pendiente |
 
 ---
 
@@ -1314,3 +1318,154 @@ Se eliminó la línea `User::factory(10)->create()` y la estructura partida de l
 - `database/seeders/DatabaseSeeder.php`
 
 **Estado:** Cerrado
+
+---
+
+### INC-049: Alerta de Conexión No Segura en Formularios HTTP
+
+**Fecha:** 2026-06-02
+**Severidad:** Alta
+**Módulo:** Seguridad / Infraestructura
+
+**Problema:**
+Al realizar cualquier acción (iniciar sesión, enviar formularios, etc.), el navegador muestra la alerta: "The information you're about to submit is not secure because this form is being submitted using a connection that's not secure." Esto ocurre porque el sitio se está sirviendo sobre HTTP en lugar de HTTPS, y el navegador advierte que los datos viajan sin cifrado.
+
+**Solución Confirmada:**
+- Activar HTTPS en la configuración del dominio `agencias.nexacore.com.mx` en dockploy
+- Traefik genera automáticamente certificado SSL con Let's Encrypt
+- Configurar redirección forzada HTTP → HTTPS
+- El DNS del subdominio debe apuntar al VPS (`76.13.127.66`)
+
+**Solución Aplicada:**
+1. **Dockploy — Dominio:** Se activó el checkbox HTTPS en la configuración del dominio. Host: `agencias.nexacore.com.mx`, Container Port: `80`. Traefik gestiona automáticamente el certificado SSL con Let's Encrypt y la redirección HTTP → HTTPS.
+
+2. **Backend — `AppServiceProvider::boot()`:** Se agregó `URL::forceScheme('https')` cuando `APP_ENV=production`. Esto fuerza a Laravel a generar todas las URLs (assets, rutas, redirects) con el esquema `https://`, eliminando recursos mixtos (mixed content) que causaban la alerta de "No seguro" en el navegador.
+
+3. **Environment — `APP_URL`:** Se configuró `APP_URL=https://agencias.nexacore.com.mx` en las variables de entorno de dockploy para que rutas absolutas y links en emails también usen HTTPS.
+
+**Archivos Modificados:**
+- `app/Providers/AppServiceProvider.php` — Agregado `URL::forceScheme('https')` en `boot()` para producción
+- Docker environment — `APP_URL=https://agencias.nexacore.com.mx`
+
+**Estado:** Cerrado
+
+---
+
+### INC-050: Superadmin No Puede Dar de Baja o Bloquear una Agencia (Tenant)
+
+**Fecha:** 2026-06-02
+**Severidad:** Alta
+**Módulo:** Superadmin / Gestión de Tenants
+
+**Problema:**
+Desde el panel de superadmin no es posible eliminar, dar de baja o bloquear una agencia (tenant). Cuando una agencia deja de ser cliente, se necesita poder desactivarla para que nadie pueda acceder, sin perder los datos históricos.
+
+**Solución Confirmada:**
+- Botón "Suspender" en la vista de tenants del superadmin
+- Al suspender: `estado = 'suspendido'`, todos los usuarios del tenant no pueden iniciar sesión
+- Datos históricos intactos (operaciones, expedientes, documentos)
+- Botón "Reactivar" para restaurar acceso (`estado = 'activo'`)
+- Middleware de autenticación que verifique `tenant.estado === 'activo'` al hacer login
+
+**Archivos a modificar:**
+- `app/Http/Controllers/Admin/TenantController.php` — Métodos `suspend()` y `reactivate()`
+- `app/Models/Tenant.php` — Agregar `suspendido` a estados válidos
+- `app/Http/Middleware/` — Verificar tenant activo en login
+- `resources/views/admin/tenants/` — Botones de suspender/reactivar
+
+**Estado:** Pendiente
+
+---
+
+### INC-051: Superadmin No Puede Crear Usuarios para un Tenant Manualmente
+
+**Fecha:** 2026-06-02
+**Severidad:** Media
+**Módulo:** Superadmin / Gestión de Usuarios
+
+**Problema:**
+Desde el panel de superadmin no existe la funcionalidad para crear manualmente un usuario dentro de un tenant específico. Esto obliga a que sea el admin de cada agencia quien cree sus propios usuarios, cuando en muchos casos el superadmin necesita hacerlo directamente (ej. durante el onboarding).
+
+**Solución Confirmada:**
+- Formulario "Crear Usuario" en la vista de detalle del tenant (`/nexacore-admin/tenants/{id}`)
+- Campos: nombre, email, contraseña (o autogenerada), rol (admin, admin_n2, documentador, etc.)
+- El usuario se crea con `tenant_id` del tenant correspondiente
+- Enviar email de bienvenida automático con credenciales y link de acceso
+
+**Archivos a modificar:**
+- `app/Http/Controllers/Admin/TenantController.php` — Método `createUser()`
+- `app/Mail/WelcomeMail.php` — Email de bienvenida
+- `resources/views/admin/tenants/show.blade.php` — Sección de creación de usuario
+- `routes/web.php` — Ruta POST
+
+**Estado:** Pendiente
+
+---
+
+### INC-052: Sistema de Facturación y Gestión de Pagos por Tenant
+
+**Fecha:** 2026-06-02
+**Severidad:** Alta
+**Módulo:** Superadmin / Finanzas
+
+**Problema:**
+No existe un sistema para gestionar la facturación y pagos de cada tenant. Se necesita:
+
+1. **Configuración de renta por tenant:** Límite de usuarios, renta fija mensual, período de gracia
+2. **Gestión de pagos:** Registro de pagos recibidos, estado de cuenta, saldo pendiente
+3. **Paquetes predefinidos:** Planes con sus características y precios (Básico, Profesional, Enterprise)
+4. **Servicios adicionales:** Cobros extra por características opcionales (más usuarios, WhatsApp, reportes avanzados, etc.)
+5. **Control de ventas:** Dashboard con ingresos mensuales, tenants morosos, proyecciones
+
+**Solución Confirmada:**
+**Fase 1 — MVP + Automatización:**
+
+1. **Planes predefinidos + personalizables:**
+   - Modelo `Plan` con: nombre, precio_mensual, max_usuarios, max_operaciones, features (JSON)
+   - Planes base: Básico, Profesional, Enterprise
+   - Posibilidad de crear planes personalizados por tenant
+
+2. **Configuración de renta por tenant:**
+   - Campos en `Tenant`: `plan_id`, `renta_mensual`, `limite_usuarios`, `periodo_gracia_dias`, `dia_corte`
+   - El superadmin asigna plan y puede sobrescribir precio/características
+
+3. **Gestión de pagos:**
+   - Modelo `Pago`: tenant_id, monto, fecha_pago, metodo, comprobante, periodo_cubierto (mes/año), notas
+   - Registro manual de pagos por el superadmin
+   - Estado de cuenta: pagado, pendiente, vencido
+
+4. **Facturación PDF:**
+   - Modelo `Factura`: tenant_id, folio, periodo, monto, estado, pdf_path
+   - Generación automática de factura PDF al registrar pago
+   - Descarga desde el panel de superadmin y desde el panel del tenant
+
+5. **Recordatorios automáticos:**
+   - Notificaciones 7, 3 y 1 día antes del vencimiento
+   - Email al `correo_admin` del tenant
+   - Notificación in-app en el panel del tenant
+
+6. **Corte automático por impago:**
+   - Al vencer el período de gracia configurable (por tenant), cambiar `estado = 'suspendido'`
+   - Todos los usuarios del tenant bloqueados hasta regularizar pago
+   - Job programado (cron) que verifica tenants vencidos diariamente
+
+7. **Dashboard financiero en superadmin:**
+   - Ingresos mensuales (gráfico)
+   - Tenants al corriente vs morosos
+   - Próximos vencimientos (7 días)
+   - Total facturado en el mes
+
+**Archivos a crear/modificar:**
+- `database/migrations/` — Tablas: `plans`, `pagos`, `facturas`
+- `app/Models/Plan.php`, `Pago.php`, `Factura.php`
+- `app/Http/Controllers/Admin/PlanController.php`
+- `app/Http/Controllers/Admin/PagoController.php`
+- `app/Http/Controllers/Admin/FacturaController.php`
+- `app/Http/Controllers/Admin/TenantController.php` — Campos de facturación
+- `app/Jobs/VerificarTenantsVencidos.php`
+- `app/Mail/RecordatorioPago.php`
+- `resources/views/admin/finanzas/` — Dashboard, planes, pagos
+- `resources/views/admin/tenants/show.blade.php` — Sección facturación
+- `routes/web.php`
+
+**Estado:** Pendiente
