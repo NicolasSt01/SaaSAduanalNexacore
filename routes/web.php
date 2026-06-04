@@ -13,7 +13,7 @@ use App\Http\Controllers\Admin\ConfigController;
 use App\Http\Controllers\Admin\WhatsAppController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\TenantController;
-use App\Http\Controllers\Admin\FinanzasController;
+use App\Http\Controllers\Admin\FinanzasController as AdminFinanzasController;
 use App\Http\Controllers\AduanaController;
 use App\Http\Controllers\BodegaController;
 use App\Http\Controllers\BorderStatusController;
@@ -148,18 +148,18 @@ Route::prefix('nexacore-admin')->name('admin.')->middleware(['auth', 'super_admi
     Route::get('/tenants/{tenant}/usage', [TenantController::class, 'getUsage'])->name('tenants.usage');
 
     // --- Finanzas: Facturación, Planes, Pagos ---
-    Route::get('/finanzas', [FinanzasController::class, 'dashboard'])->name('finanzas.dashboard');
+    Route::get('/finanzas', [AdminFinanzasController::class, 'dashboard'])->name('finanzas.dashboard');
 
-    Route::get('/finanzas/planes', [FinanzasController::class, 'planes'])->name('finanzas.planes');
-    Route::post('/finanzas/planes', [FinanzasController::class, 'storePlan'])->name('finanzas.planes.store');
-    Route::put('/finanzas/planes/{plan}', [FinanzasController::class, 'updatePlan'])->name('finanzas.planes.update');
-    Route::delete('/finanzas/planes/{plan}', [FinanzasController::class, 'destroyPlan'])->name('finanzas.planes.destroy');
+    Route::get('/finanzas/planes', [AdminFinanzasController::class, 'planes'])->name('finanzas.planes');
+    Route::post('/finanzas/planes', [AdminFinanzasController::class, 'storePlan'])->name('finanzas.planes.store');
+    Route::put('/finanzas/planes/{plan}', [AdminFinanzasController::class, 'updatePlan'])->name('finanzas.planes.update');
+    Route::delete('/finanzas/planes/{plan}', [AdminFinanzasController::class, 'destroyPlan'])->name('finanzas.planes.destroy');
 
-    Route::get('/finanzas/pagos', [FinanzasController::class, 'pagos'])->name('finanzas.pagos');
-    Route::post('/finanzas/pagos', [FinanzasController::class, 'storePago'])->name('finanzas.pagos.store');
+    Route::get('/finanzas/pagos', [AdminFinanzasController::class, 'pagos'])->name('finanzas.pagos');
+    Route::post('/finanzas/pagos', [AdminFinanzasController::class, 'storePago'])->name('finanzas.pagos.store');
 
-    Route::get('/finanzas/facturas', [FinanzasController::class, 'facturas'])->name('finanzas.facturas');
-    Route::get('/finanzas/facturas/{factura}/descargar', [FinanzasController::class, 'descargarFactura'])->name('finanzas.facturas.descargar');
+    Route::get('/finanzas/facturas', [AdminFinanzasController::class, 'facturas'])->name('finanzas.facturas');
+    Route::get('/finanzas/facturas/{factura}/descargar', [AdminFinanzasController::class, 'descargarFactura'])->name('finanzas.facturas.descargar');
 });
 
 // ============================================================================
