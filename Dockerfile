@@ -33,7 +33,11 @@ COPY . /var/www/html
 WORKDIR /var/www/html
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+RUN echo "APP_KEY=buildtimeplaceholder" > /var/www/html/.env \
+    && echo "DB_CONNECTION=mysql" >> /var/www/html/.env \
+    && composer install --no-dev --optimize-autoloader --no-interaction \
+    && rm /var/www/html/.env
 
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
