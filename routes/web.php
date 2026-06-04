@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\ConfigController;
 use App\Http\Controllers\Admin\WhatsAppController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\FinanzasController;
 use App\Http\Controllers\AduanaController;
 use App\Http\Controllers\BodegaController;
 use App\Http\Controllers\BorderStatusController;
@@ -145,6 +146,20 @@ Route::prefix('nexacore-admin')->name('admin.')->middleware(['auth', 'super_admi
     Route::put('/tenants/{tenant}/capabilities', [TenantController::class, 'updateCapabilities'])->name('tenants.capabilities.update');
     Route::post('/tenants/{tenant}/capabilities/apply-defaults', [TenantController::class, 'applyPlanDefaults'])->name('tenants.capabilities.apply-defaults');
     Route::get('/tenants/{tenant}/usage', [TenantController::class, 'getUsage'])->name('tenants.usage');
+
+    // --- Finanzas: Facturación, Planes, Pagos ---
+    Route::get('/finanzas', [FinanzasController::class, 'dashboard'])->name('finanzas.dashboard');
+
+    Route::get('/finanzas/planes', [FinanzasController::class, 'planes'])->name('finanzas.planes');
+    Route::post('/finanzas/planes', [FinanzasController::class, 'storePlan'])->name('finanzas.planes.store');
+    Route::put('/finanzas/planes/{plan}', [FinanzasController::class, 'updatePlan'])->name('finanzas.planes.update');
+    Route::delete('/finanzas/planes/{plan}', [FinanzasController::class, 'destroyPlan'])->name('finanzas.planes.destroy');
+
+    Route::get('/finanzas/pagos', [FinanzasController::class, 'pagos'])->name('finanzas.pagos');
+    Route::post('/finanzas/pagos', [FinanzasController::class, 'storePago'])->name('finanzas.pagos.store');
+
+    Route::get('/finanzas/facturas', [FinanzasController::class, 'facturas'])->name('finanzas.facturas');
+    Route::get('/finanzas/facturas/{factura}/descargar', [FinanzasController::class, 'descargarFactura'])->name('finanzas.facturas.descargar');
 });
 
 // ============================================================================

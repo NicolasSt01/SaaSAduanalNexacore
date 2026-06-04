@@ -25,6 +25,10 @@
                 <i class="fas fa-building w-6"></i>
                 <span class="font-medium">Agencias (Tenants)</span>
             </a>
+            <a href="{{ route('admin.finanzas.dashboard') }}" class="flex items-center px-4 py-3 {{ request()->routeIs('admin.finanzas.*') ? 'bg-indigo-700 text-white' : 'bg-indigo-800 text-indigo-100 hover:bg-indigo-700' }} rounded-lg transition">
+                <i class="fas fa-chart-line w-6"></i>
+                <span class="font-medium">Finanzas</span>
+            </a>
         </nav>
         <div class="p-4 border-t border-indigo-800">
             <div class="flex items-center gap-3">

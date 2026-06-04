@@ -29,17 +29,21 @@ class Tenant extends Model
         'configuracion',
         'referencia_prefijo',
         'referencia_consecutivo',
+        'plan_id', 'renta_mensual', 'periodo_gracia_dias', 'fecha_corte',
+        'ultimo_pago_fecha', 'saldo_pendiente',
     ];
 
     protected $casts = [
-        'fecha_inicio' => 'date',
-        'fecha_vencimiento' => 'date',
         'trial_started_at' => 'datetime',
         'trial_ends_at' => 'datetime',
-        'es_trial' => 'boolean',
+        'fecha_inicio' => 'date',
+        'fecha_vencimiento' => 'date',
+        'fecha_corte' => 'date',
+        'ultimo_pago_fecha' => 'date',
         'configuracion' => 'array',
-        'bot_config' => 'array',
-        'features_enabled' => 'array',
+        'es_trial' => 'boolean',
+        'renta_mensual' => 'decimal:2',
+        'saldo_pendiente' => 'decimal:2',
     ];
 
     public function users()
@@ -777,5 +781,37 @@ class Tenant extends Model
         $this->es_trial = true;
         $this->fecha_inicio = now();
         $this->fecha_vencimiento = now()->addDays(7);
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
+    public function pagos()
+    {
+        return $this->hasMany(Pago::class);
+    }
+
+    public function facturas()
+    {
+        return $this->hasMany(Factura::class);
+    }
+
+    public function estaAlCorriente(): bool
+    {
+        return $this->saldo_pendiente <= 0;
+    }
+
+    public function diasHastaVencimiento(): ?int
+    {
+        if (!$this->fecha_corte || $this->estaAlCorriente()) return null;
+        return max(0, (int) now()->startOfDay()->diffInDays($this->fecha_corte, false));
+    }
+
+    public function estaVencido(): bool
+    {
+        if (!$this->fecha_corte || $this->estaAlCorriente()) return false;
+        return now()->startOfDay()->gt($this->fecha_corte->addDays($this->periodo_gracia_dias ?? 5));
     }
 }

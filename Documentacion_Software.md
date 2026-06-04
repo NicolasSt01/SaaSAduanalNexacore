@@ -225,7 +225,7 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 32 | **INC-049**: Alerta de conexión no segura en formularios HTTP — habilitar HTTPS con Let's Encrypt | Alta | Cerrado |
 | 33 | **INC-050**: Superadmin no puede suspender/bloquear una agencia (Tenant) | Alta | Cerrado |
 | 34 | **INC-051**: Superadmin no puede crear usuarios manualmente para un Tenant | Media | Cerrado |
-| 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Pendiente |
+| 35 | **INC-052**: Sistema de facturación y gestión de pagos por Tenant (MVP + automatización) | Alta | Cerrado |
 | 36 | **INC-053**: Branding de emails de bienvenida + protección de rol super_admin | Media | Cerrado |
 
 ---
@@ -1515,7 +1515,76 @@ No existe un sistema para gestionar la facturación y pagos de cada tenant. Se n
 - `resources/views/admin/tenants/show.blade.php` — Sección facturación
 - `routes/web.php`
 
-**Estado:** Pendiente
+**Solución Aplicada:**
+
+1. **Migración `2026_06_02_000000_create_billing_tables`:**
+   - Tabla `planes`: nombre, precio_mensual, max_usuarios, max_operaciones_mes, max_documentos_mes, features (JSON), activo, soft deletes
+   - Tabla `pagos`: tenant_id, monto, fecha_pago, metodo, comprobante, periodo_inicio, periodo_fin, notas
+   - Tabla `facturas`: tenant_id, pago_id, folio, periodo, monto, estado, pdf_path
+   - Columnas nuevas en `tenants`: plan_id, renta_mensual, periodo_gracia_dias, fecha_corte, ultimo_pago_fecha, saldo_pendiente
+
+2. **Modelos:**
+   - `Plan`: CRUD de planes con precios, límites y features configurables vía JSON
+   - `Pago`: Registro de pagos con relación a tenant y factura
+   - `Factura`: Facturas con folio único, relación a pago y tenant
+   - `Tenant`: `plan()`, `pagos()`, `facturas()`, `estaAlCorriente()`, `diasHastaVencimiento()`, `estaVencido()`
+
+3. **`FinanzasController`:**
+   - `dashboard()`: KPIs financieros (ingresos mes, morosos, suspendidos, próximos a vencer, total facturado) + últimos pagos
+   - `planes()`: CRUD de planes de suscripción
+   - `pagos()`: Registro manual de pagos con generación automática de factura y actualización de saldo pendiente
+   - `facturas()`: Listado de facturas con filtro por tenant y descarga PDF
+   - `descargarFactura()`: Generación de factura PDF con DomPDF
+
+4. **Job `VerificarTenantsVencidos`:**
+   - Ejecución diaria programada a las 08:00 AM
+   - Envía recordatorios por email 7, 3 y 1 día antes del vencimiento
+   - Suspende automáticamente al tenant si el período de gracia expiró
+
+5. **Email `RecordatorioPago`:** Template Markdown con saldo pendiente, días restantes y fecha límite
+
+6. **Vistas:**
+   - `admin/finanzas/dashboard`: KPIs, últimos pagos, accesos a planes/pagos/facturas
+   - `admin/finanzas/planes`: Crear/listar/eliminar planes de suscripción
+   - `admin/finanzas/pagos`: Registrar pagos con formulario + tabla paginada
+   - `admin/finanzas/facturas`: Listado de facturas con descarga PDF
+   - `admin/finanzas/pdf-factura`: Template PDF para descarga
+   - `admin/tenants/show`: Selector de plan y fecha de corte en configuración de renta
+   - `layouts/admin`: Link a Finanzas en sidebar
+
+7. **PlanSeeder:** 3 planes predefinidos (Básico $1,500, Profesional $3,500, Enterprise $7,000)
+
+**Pasos post-deploy:**
+```bash
+docker exec nexacore_app php artisan migrate --force
+docker exec nexacore_app php artisan db:seed --class=PlanSeeder --force
+docker exec nexacore_app php artisan config:cache
+```
+
+**Archivos Creados:**
+- `database/migrations/2026_06_02_000000_create_billing_tables.php`
+- `app/Models/Plan.php`, `Pago.php`, `Factura.php`
+- `app/Http/Controllers/Admin/FinanzasController.php`
+- `app/Jobs/VerificarTenantsVencidos.php`
+- `app/Mail/RecordatorioPago.php`
+- `database/seeders/PlanSeeder.php`
+- `resources/views/admin/finanzas/dashboard.blade.php`
+- `resources/views/admin/finanzas/planes.blade.php`
+- `resources/views/admin/finanzas/pagos.blade.php`
+- `resources/views/admin/finanzas/facturas.blade.php`
+- `resources/views/admin/finanzas/pdf-factura.blade.php`
+- `resources/views/emails/recordatorio-pago.blade.php`
+
+**Archivos Modificados:**
+- `app/Models/Tenant.php` — billing fields, casts, métodos
+- `app/Http/Controllers/Admin/TenantController.php` — updateConfig, show
+- `database/seeders/DatabaseSeeder.php`
+- `resources/views/admin/tenants/show.blade.php`
+- `resources/views/layouts/admin.blade.php`
+- `routes/web.php`
+- `routes/console.php`
+
+**Estado:** Cerrado
 
 ---
 

@@ -140,6 +140,25 @@
                     </p>
                 </div>
 
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Plan de Suscripción</label>
+                    <select name="plan_id" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2.5 border">
+                        <option value="">Sin plan asignado</option>
+                        @foreach($planes as $plan)
+                        <option value="{{ $plan->id }}" {{ $tenant->plan_id == $plan->id ? 'selected' : '' }}>
+                            {{ $plan->nombre }} — ${{ number_format($plan->precio_mensual, 2) }}/mes
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha de Corte</label>
+                    <input type="date" name="fecha_corte" value="{{ old('fecha_corte', $tenant->fecha_corte?->format('Y-m-d')) }}"
+                        class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2.5 border">
+                    <p class="text-xs text-gray-500 mt-1">Fecha base para calcular vencimientos y recordatorios.</p>
+                </div>
+
                 <div class="mb-6 border-t pt-4">
                     <h5 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Permisos Habilitados para
                         Tenant</h5>

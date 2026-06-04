@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Plan;
 use App\Services\TenantCapabilityService;
 use App\Mail\WelcomeMail;
 use Illuminate\Support\Facades\Mail;
@@ -88,6 +89,8 @@ class TenantController extends Controller
     {
         $tenant->load('users');
 
+        $planes = Plan::where('activo', true)->orderBy('nombre')->get();
+
         $mesActual = \Carbon\Carbon::now()->startOfMonth();
         $finMes = \Carbon\Carbon::now()->endOfMonth();
 
@@ -115,7 +118,7 @@ class TenantController extends Controller
 
         $allPermisos = \App\Models\User::getAllAvailablePermisos();
 
-        return view('admin.tenants.show', compact('tenant', 'opsMes', 'docsMes', 'emailsMes', 'whatsappMes', 'allPermisos'));
+        return view('admin.tenants.show', compact('tenant', 'opsMes', 'docsMes', 'emailsMes', 'whatsappMes', 'allPermisos', 'planes'));
     }
 
     public function updateConfig(Request $request, Tenant $tenant)
@@ -125,6 +128,8 @@ class TenantController extends Controller
             'renta_mensual' => 'required|numeric|min:0',
             'dias_gracia' => 'required|integer|min:0',
             'permisos' => 'nullable|array',
+            'plan_id' => 'nullable|exists:planes,id',
+            'fecha_corte' => 'nullable|date',
         ]);
 
         $config = $tenant->configuracion ?? [];
@@ -134,6 +139,11 @@ class TenantController extends Controller
 
         $tenant->configuracion = $config;
         $tenant->max_usuarios = $request->max_usuarios;
+        $tenant->renta_mensual = $request->renta_mensual;
+        $tenant->periodo_gracia_dias = $request->dias_gracia;
+        $tenant->plan_id = $request->plan_id;
+        $tenant->fecha_corte = $request->fecha_corte;
+        $tenant->saldo_pendiente = $request->renta_mensual;
         $tenant->save();
 
         return redirect()->route('admin.tenants.show', $tenant->id)->with('success', 'Configuración de facturación y permisos actualizada.');

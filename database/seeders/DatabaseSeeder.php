@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class ,
             AdminUserSeeder::class ,
             ExpedienteSeeder::class ,
+            PlanSeeder::class ,
         ]);
     }
 }
