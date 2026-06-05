@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Plan;
+use App\Models\PlanCustom;
 
 class PlanSeeder extends Seeder
 {
@@ -34,6 +35,18 @@ class PlanSeeder extends Seeder
             'max_operaciones_mes' => null,
             'max_documentos_mes' => null,
             'features' => json_encode(['reportes_avanzados', 'bot_doda_auto', 'email_notifications', 'whatsapp', 'api_access', 'soporte_prioritario', 'personalizacion']),
+        ]);
+
+        PlanCustom::create([
+            'nombre' => 'Trial 15 Días',
+            'descripcion' => 'Plan de prueba gratuito por 15 días con acceso limitado',
+            'precio_base' => 0,
+            'max_usuarios' => 1,
+            'max_operaciones_mes' => 20,
+            'max_documentos_mes' => 40,
+            'max_modulaciones_mes' => 20,
+            'reportes_habilitados' => ['clientes', 'operacion_semanal', 'aduanas', 'pedimentos'],
+            'features_habilitadas' => ['email_notifications'],
         ]);
     }
 }

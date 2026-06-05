@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\WhatsAppController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\FinanzasController as AdminFinanzasController;
+use App\Http\Controllers\Admin\SuscripcionesController;
+use App\Http\Controllers\Admin\AddonsController;
 use App\Http\Controllers\AduanaController;
 use App\Http\Controllers\BodegaController;
 use App\Http\Controllers\BorderStatusController;
@@ -160,6 +162,30 @@ Route::prefix('nexacore-admin')->name('admin.')->middleware(['auth', 'super_admi
 
     Route::get('/finanzas/facturas', [AdminFinanzasController::class, 'facturas'])->name('finanzas.facturas');
     Route::get('/finanzas/facturas/{factura}/descargar', [AdminFinanzasController::class, 'descargarFactura'])->name('finanzas.facturas.descargar');
+
+    // --- Suscripciones: Planes Custom, Suscripciones, Add-ons ---
+    Route::get('/suscripciones/dashboard', [SuscripcionesController::class, 'dashboard'])->name('suscripciones.dashboard');
+    Route::get('/suscripciones/planes', [SuscripcionesController::class, 'planes'])->name('suscripciones.planes');
+    Route::post('/suscripciones/planes', [SuscripcionesController::class, 'storePlan'])->name('suscripciones.planes.store');
+    Route::put('/suscripciones/planes/{plan}', [SuscripcionesController::class, 'updatePlan'])->name('suscripciones.planes.update');
+    Route::delete('/suscripciones/planes/{plan}', [SuscripcionesController::class, 'destroyPlan'])->name('suscripciones.planes.destroy');
+
+    Route::get('/suscripciones', [SuscripcionesController::class, 'index'])->name('suscripciones.index');
+    Route::post('/suscripciones/crear/{tenant}', [SuscripcionesController::class, 'crearSuscripcion'])->name('suscripciones.crear');
+    Route::post('/suscripciones/aprobar/{suscripcion}', [SuscripcionesController::class, 'aprobarPago'])->name('suscripciones.aprobar');
+    Route::post('/suscripciones/rechazar/{suscripcion}', [SuscripcionesController::class, 'rechazarPago'])->name('suscripciones.rechazar');
+
+    Route::get('/suscripciones/addons', [AddonsController::class, 'catalogo'])->name('suscripciones.addons');
+    Route::post('/suscripciones/addons', [AddonsController::class, 'storeAddon'])->name('suscripciones.addons.store');
+    Route::put('/suscripciones/addons/{addon}', [AddonsController::class, 'updateAddon'])->name('suscripciones.addons.update');
+    Route::delete('/suscripciones/addons/{addon}', [AddonsController::class, 'destroyAddon'])->name('suscripciones.addons.destroy');
+    Route::get('/suscripciones/addons-contratados', [AddonsController::class, 'contratados'])->name('suscripciones.addons.contratados');
+    Route::post('/suscripciones/addons/contratar/{tenant}', [AddonsController::class, 'contratar'])->name('suscripciones.addons.contratar');
+    Route::post('/suscripciones/addons/aprobar/{addonContratado}', [AddonsController::class, 'aprobarPago'])->name('suscripciones.addons.aprobar');
+    Route::post('/suscripciones/addons/rechazar/{addonContratado}', [AddonsController::class, 'rechazarPago'])->name('suscripciones.addons.rechazar');
+
+    Route::get('/suscripciones/configuracion', [SuscripcionesController::class, 'configuracion'])->name('suscripciones.configuracion');
+    Route::post('/suscripciones/configuracion', [SuscripcionesController::class, 'updateConfiguracion'])->name('suscripciones.configuracion.update');
 });
 
 // ============================================================================

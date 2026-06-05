@@ -89,6 +89,100 @@
         </div>
     </div>
 
+    <!-- Sección de Suscripción Activa (INC-059) -->
+    @php
+        $suscripcionActiva = \App\Models\Suscripcion::where('tenant_id', $tenant->id)->where('estado', 'activa')->latest()->first();
+        $addonsActivos = \App\Models\AddonContratado::with('addon')->where('tenant_id', $tenant->id)->where('estado', 'activo')->get();
+        $planesDisponibles = \App\Models\PlanCustom::where('activo', true)->orderBy('nombre')->get();
+        $addonsDisponibles = \App\Models\Addon::where('activo', true)->orderBy('tipo')->orderBy('nombre')->get();
+    @endphp
+
+    <div class="mt-6 mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Suscripción Activa -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h4 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4 flex items-center">
+                <i class="fas fa-credit-card text-indigo-500 mr-2"></i> Suscripción
+            </h4>
+            @if($suscripcionActiva)
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-black text-emerald-600 uppercase tracking-widest">Plan Activo</p>
+                            <p class="text-xl font-black text-gray-800">{{ $suscripcionActiva->plan->nombre }}</p>
+                        </div>
+                        <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">ACTIVA</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 mt-3 text-center">
+                        <div>
+                            <p class="text-xs text-gray-500">Inicio</p>
+                            <p class="font-bold text-sm">{{ $suscripcionActiva->fecha_inicio->format('d/m/Y') }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Vence</p>
+                            <p class="font-bold text-sm">{{ $suscripcionActiva->fecha_fin->format('d/m/Y') }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Restan</p>
+                            <p class="font-black text-lg {{ $suscripcionActiva->diasRestantes() <= 7 ? 'text-red-600' : 'text-emerald-600' }}">{{ $suscripcionActiva->diasRestantes() }}d</p>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 text-center">
+                    <i class="fas fa-info-circle text-gray-400 text-2xl mb-2"></i>
+                    <p class="text-sm text-gray-500">Sin suscripción activa</p>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('admin.suscripciones.crear', $tenant->id) }}" class="flex gap-2">
+                @csrf
+                <select name="plan_custom_id" required class="flex-1 rounded-lg border-gray-300 text-sm px-3 py-2">
+                    <option value="">Seleccionar plan...</option>
+                    @foreach($planesDisponibles as $p)
+                        <option value="{{ $p->id }}">{{ $p->nombre }} — ${{ number_format($p->precio_base, 2) }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-sm whitespace-nowrap" onclick="return confirm('¿Crear suscripción y enviar email de pago?')">
+                    <i class="fas fa-plus mr-1"></i> Crear
+                </button>
+            </form>
+        </div>
+
+        <!-- Add-ons Contratados -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h4 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4 flex items-center">
+                <i class="fas fa-puzzle-piece text-purple-500 mr-2"></i> Add-ons
+            </h4>
+            @if($addonsActivos->count() > 0)
+                <div class="space-y-2 mb-4">
+                    @foreach($addonsActivos as $ac)
+                    <div class="flex justify-between items-center bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fas {{ $ac->addon->tipo_icon }} text-{{ $ac->addon->tipo_color }}-500"></i>
+                            <span class="text-sm font-bold">{{ $ac->addon->nombre }}</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-500">{{ $ac->diasRestantes() }}d</span>
+                    </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-gray-400 mb-4">Sin add-ons activos</p>
+            @endif
+
+            <form method="POST" action="{{ route('admin.suscripciones.addons.contratar', $tenant->id) }}" class="flex gap-2">
+                @csrf
+                <select name="addon_id" required class="flex-1 rounded-lg border-gray-300 text-sm px-3 py-2">
+                    <option value="">Agregar add-on...</option>
+                    @foreach($addonsDisponibles as $a)
+                        <option value="{{ $a->id }}">{{ $a->nombre }} (${{ number_format($a->precio_mensual, 2) }}/mes)</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-lg text-sm whitespace-nowrap" onclick="return confirm('¿Contratar add-on y enviar email de pago?')">
+                    <i class="fas fa-plus mr-1"></i> Contratar
+                </button>
+            </form>
+        </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

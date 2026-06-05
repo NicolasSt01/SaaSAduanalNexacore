@@ -29,6 +29,10 @@
                 <i class="fas fa-chart-line w-6"></i>
                 <span class="font-medium">Finanzas</span>
             </a>
+            <a href="{{ route('admin.suscripciones.dashboard') }}" class="flex items-center px-4 py-3 {{ request()->routeIs('admin.suscripciones.*') ? 'bg-indigo-700 text-white' : 'bg-indigo-800 text-indigo-100 hover:bg-indigo-700' }} rounded-lg transition">
+                <i class="fas fa-credit-card w-6"></i>
+                <span class="font-medium">Suscripciones</span>
+            </a>
         </nav>
         <div class="p-4 border-t border-indigo-800">
             <div class="flex items-center gap-3">

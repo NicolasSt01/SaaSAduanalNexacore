@@ -14,3 +14,9 @@ Schedule::command('clientes:verificar-csf')->dailyAt('07:00');
 
 // INC-052: Verificación diaria de tenants vencidos para corte automático
 Schedule::job(new \App\Jobs\VerificarTenantsVencidos)->dailyAt('08:00');
+
+// INC-059: Verificación diaria de suscripciones vencidas
+Schedule::job(new \App\Jobs\VerificarSuscripcionesVencidas)->dailyAt('08:15');
+
+// INC-059: Verificación diaria de add-ons vencidos
+Schedule::job(new \App\Jobs\VerificarAddonsVencidos)->dailyAt('08:30');

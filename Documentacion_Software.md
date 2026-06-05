@@ -232,6 +232,8 @@ El proyecto NexaCore Aduanal presenta una arquitectura SaaS multi-tenant sólida
 | 39 | **INC-056**: Sesión única por usuario — cierre automático al iniciar sesión en otro dispositivo | Alta | Cerrado |
 | 40 | **INC-057**: Deshabilitar módulo de Finanzas del tenant para futuras mejoras | Media | Cerrado |
 | 41 | **INC-058**: Tenants de prueba sin reportes habilitados — configuración por defecto en trial | Alta | Cerrado |
+| 42 | **INC-059**: Sistema completo de suscripciones SaaS — planes custom, pasarela de pago, aprobación manual, activación y add-ons | Alta | Cerrado |
+| 43 | **INC-060**: Separación de módulos Finanzas y Suscripciones + catálogo de add-ons con identificadores predefinidos | Media | Cerrado |
 
 ---
 
@@ -1833,5 +1835,275 @@ Pero faltaba la clave `reportes` con los arrays `enabled` y `disabled`.
 
 **Archivos Modificados:**
 - `app/Models/Tenant.php` — Método `applyTrialConfig()` actualizado con clave `reportes` y reportes por defecto
+
+**Estado:** Cerrado
+
+---
+
+### INC-059: Sistema Completo de Suscripciones SaaS — Planes Custom, Pasarela de Pago, Aprobación Manual y Activación
+
+**Fecha:** 2026-06-04
+**Severidad:** Alta
+**Módulo:** Superadmin / Finanzas / Suscripciones / Pagos
+
+**Problema:**
+El sistema actual de facturación (`INC-052`) es básico y no soporta un flujo completo de ventas SaaS. Se requiere un sistema robusto que permita:
+
+1. **Planes altamente personalizables:** El superadmin debe poder crear paquetes a medida (ej: "Paquete México", "Paquete Fronterizo") con límites específicos de usuarios, modulaciones, operaciones, documentos, reportes, etc.
+2. **Pasarela de pago con IVA configurable:** El precio del plan debe sumarse con un porcentaje de IVA (8% o 16%) configurable desde la configuración del superadmin.
+3. **Pago por transferencia bancaria:** El cliente recibe instrucciones de pago por email con datos bancarios personalizables (banco, CLABE, cuenta, referencia).
+4. **Flujo de aprobación manual:** El superadmin verifica el pago en la cuenta bancaria y lo aprueba desde el panel, activando automáticamente las características del plan contratado.
+5. **Branding NexaCore Aduanal:** Todos los emails, vistas y PDFs deben seguir el sistema de diseño NexaCore (rounded-2xl, indigo-600, font-black, etc.).
+6. **Interfaz intuitiva:** El superadmin debe tener un dashboard claro para gestionar suscripciones, pagos pendientes y aprobaciones.
+7. **Add-ons / Detalles adicionales:** El cliente puede contratar funcionalidades extra sin cambiar de plan (ej: un reporte específico, plantillas de correo personalizadas, plantillas de WhatsApp, etc.) con cobro mensual recurrente.
+
+**Solución Propuesta:**
+
+**Fase 1 — Backend y Modelos:**
+
+1. **Migración `2026_06_04_000000_create_subscriptions_tables`:**
+   - Tabla `planes_custom`: id, nombre, descripcion, precio_base, iva_porcentaje (default 16), max_usuarios, max_operaciones_mes, max_documentos_mes, max_modulaciones_mes, reportes_habilitados (JSON), features_habilitadas (JSON), activo, soft deletes.
+   - Tabla `suscripciones`: id, tenant_id, plan_custom_id, estado (pendiente_pago, pendiente_aprobacion, activa, vencida, cancelada), fecha_inicio, fecha_fin, monto_base, monto_iva, monto_total, referencia_pago, comprobante_path, notas, approved_by (user_id), approved_at, timestamps.
+   - Tabla `configuracion_facturacion` (singleton): id, empresa_nombre, empresa_rfc, banco_nombre, banco_clabe, banco_cuenta, banco_referencia_prefix, iva_porcentaje (default 16), email_notificaciones, logo_url, notas_legales.
+
+2. **Modelos:**
+   - `PlanCustom`: CRUD de planes con límites granulares y reportes/features habilitados.
+   - `Suscripcion`: Relación con tenant y plan, estados de flujo de pago, métodos `aprobar()`, `rechazar()`, `vencer()`.
+   - `ConfiguracionFacturacion`: Modelo singleton para datos bancarios y fiscales.
+
+3. **Controller `SuscripcionesController` (Superadmin):**
+   - `dashboard()`: KPIs (suscripciones activas, pagos pendientes, ingresos del mes, próximos a vencer).
+   - `planes()`: CRUD de planes custom.
+   - `suscripciones()`: Listado de suscripciones con filtros por estado.
+   - `crearSuscripcion()`: Asignar plan a tenant, generar referencia de pago, enviar email con instrucciones.
+   - `aprobarPago()`: Marcar suscripción como activa, actualizar capabilities del tenant, enviar email de confirmación.
+   - `rechazarPago()`: Marcar como rechazada, notificar al cliente.
+   - `configuracion()`: Editar datos bancarios, IVA, branding.
+
+**Fase 2 — Emails y Notificaciones:**
+
+4. **Email `InstruccionesPagoMail`:**
+   - Enviado al `correo_admin` del tenant cuando se crea una suscripción.
+   - Contenido: nombre del plan, desglose de precio (base + IVA = total), datos bancarios (banco, CLABE, cuenta), referencia única de pago, fecha límite de pago, instrucciones paso a paso.
+   - Diseño: Template HTML con branding NexaCore Aduanal (logo, colores indigo, footer con contacto).
+
+5. **Email `PagoAprobadoMail`:**
+   - Enviado cuando el superadmin aprueba el pago.
+   - Contenido: confirmación de pago recibido, fecha de activación, fecha de vencimiento, resumen de características activadas, botón de acceso al sistema.
+   - Diseño: Template HTML con branding NexaCore.
+
+6. **Email `PagoRechazadoMail`:**
+   - Enviado cuando el superadmin rechaza el pago.
+   - Contenido: motivo del rechazo, instrucciones para reintentar, contacto de soporte.
+
+**Fase 3 — Vistas Superadmin (NexaCore Design Language):**
+
+7. **Dashboard de Suscripciones (`admin/suscripciones/dashboard.blade.php`):**
+   - KPIs: Suscripciones activas (verde), Pagos pendientes de aprobación (ámbar), Ingresos del mes (indigo), Próximos a vencer en 7 días (rojo).
+   - Tabla de últimos pagos pendientes con botones de "Aprobar" y "Rechazar".
+   - Gráfico de ingresos mensuales (últimos 6 meses).
+
+8. **Gestión de Planes (`admin/suscripciones/planes.blade.php`):**
+   - Grid de planes con cards (nombre, precio, límites, tenants asignados).
+   - Modal de crear/editar plan con campos: nombre, descripción, precio base, IVA %, límites (usuarios, operaciones, documentos, modulaciones), checkboxes de reportes habilitados, checkboxes de features habilitadas.
+   - Botón de eliminar (solo si no tiene tenants asignados).
+
+9. **Gestión de Suscripciones (`admin/suscripciones/index.blade.php`):**
+   - Tabla con filtros por estado (pendiente_pago, pendiente_aprobacion, activa, vencida, cancelada).
+   - Columnas: Tenant, Plan, Monto Total, Estado, Fecha Inicio, Fecha Fin, Acciones.
+   - Modal de detalle con historial de pagos, botón de "Aprobar Pago" (subir comprobante opcional), botón de "Rechazar" (con motivo).
+
+10. **Configuración de Facturación (`admin/suscripciones/configuracion.blade.php`):**
+    - Formulario con secciones:
+      - **Datos de la Empresa:** nombre, RFC (para facturas).
+      - **Datos Bancarios:** banco, CLABE, cuenta, prefijo de referencia.
+      - **Configuración Fiscal:** IVA % (8 o 16), email de notificaciones.
+      - **Branding:** logo URL, notas legales (pie de página de emails).
+    - Botón "Guardar Configuración".
+
+**Fase 4 — Integración con Tenant:**
+
+11. **Actualización de `TenantController::updateCapabilities()`:**
+    - Cuando se aprueba una suscripción, actualizar automáticamente `configuracion` del tenant con los límites del plan (max_usuarios, max_operaciones_mes, etc.), reportes habilitados y features habilitadas.
+
+12. **Vista de Tenant (`admin/tenants/show.blade.php`):**
+    - Sección "Suscripción Activa" mostrando: plan contratado, fecha de inicio, fecha de vencimiento, días restantes, estado.
+    - Botón "Crear Nueva Suscripción" (si no tiene suscripción activa).
+
+13. **Job `VerificarSuscripcionesVencidas`:**
+    - Ejecución diaria a las 08:00 AM.
+    - Busca suscripciones activas con `fecha_fin < now()`.
+    - Cambia estado a `vencida`.
+    - Envía email de recordatorio 7, 3 y 1 día antes del vencimiento.
+    - Suspende el tenant si la suscripción venció + periodo de gracia agotado.
+
+**Fase 5 — Add-ons / Detalles Adicionales:**
+
+14. **Migración `2026_06_04_000001_create_addons_tables`:**
+    - Tabla `addons`: id, nombre, descripcion, tipo (reporte, plantilla_email, plantilla_whatsapp, feature, recurso_extra), identificador (slug o clave técnica, ej: `reporte_remesas`, `plantilla_email_custom_2`), precio_mensual, iva_porcentaje (default 16), activo, soft deletes.
+    - Tabla `addons_contratados`: id, tenant_id, addon_id, estado (pendiente_pago, pendiente_aprobacion, activo, vencido, cancelado), fecha_inicio, fecha_fin, monto_base, monto_iva, monto_total, referencia_pago, approved_by, approved_at, timestamps.
+
+15. **Modelo `Addon`:**
+    - Catálogo de add-ons disponibles con tipos:
+      - `reporte`: Acceso a un reporte específico fuera del plan (ej: "Reporte de Remesas", "Reporte de Patrones de Cliente").
+      - `plantilla_email`: Plantilla de correo personalizada adicional (ej: "Plantilla Notificación de Embarque", "Plantilla Recordatorio de Pago").
+      - `plantilla_whatsapp`: Plantilla de mensaje WhatsApp personalizada (ej: "Plantilla Seguimiento de Contenedor", "Plantilla Alerta de Modulación").
+      - `feature`: Funcionalidad extra (ej: "API Access", "Integración con sistema contable", "Soporte prioritario").
+      - `recurso_extra`: Ampliación de límites (ej: "+50 operaciones mensuales", "+10 usuarios adicionales", "+500 documentos").
+    - Método `aplicarATenant(Tenant)`: activa el add-on en la configuración del tenant (agrega reporte a `reportes.enabled`, incrementa límite, activa feature, etc.).
+    - Método `removerDeTenant(Tenant)`: desactiva el add-on al vencer o cancelar.
+
+16. **Modelo `AddonContratado`:**
+    - Relación con tenant y addon.
+    - Estados de flujo de pago (mismo patrón que `Suscripcion`).
+    - Métodos `aprobar()`, `rechazar()`, `vencer()`.
+
+17. **Controller `AddonsController` (Superadmin):**
+    - `catalogo()`: CRUD de add-ons disponibles.
+    - `contratados()`: Listado de add-ons activos por tenant.
+    - `contratar()`: Asignar add-on a tenant, generar referencia de pago, enviar email con instrucciones.
+    - `aprobarPago()`: Activar add-on en el tenant, enviar email de confirmación.
+    - `rechazarPago()`: Marcar como rechazado, notificar al cliente.
+
+18. **Vistas de Add-ons:**
+    - **Catálogo (`admin/suscripciones/addons.blade.php`):** Grid de add-ons con cards por tipo (icono diferenciado: `fa-chart-bar` para reportes, `fa-envelope` para emails, `fa-comment-dots` para WhatsApp, `fa-puzzle-piece` para features, `fa-plus-circle` para recursos). Modal de crear/editar con campos: nombre, descripción, tipo, identificador técnico, precio mensual.
+    - **Contratar Add-on (en `admin/tenants/show.blade.php`):** Sección "Add-ons Contratados" con tabla de add-ons activos y botón "Agregar Add-on" que abre modal con catálogo filtrado (solo muestra los que el tenant NO tiene).
+    - **Gestión (`admin/suscripciones/addons-contratados.blade.php`):** Tabla similar a suscripciones pero para add-ons, con filtros por tenant y estado.
+
+19. **Email `InstruccionesPagoAddonMail`:**
+    - Similar a `InstruccionesPagoMail` pero para add-ons individuales.
+    - Contenido: nombre del add-on, precio + IVA, datos bancarios, referencia única.
+    - Permite pagar múltiples add-ons en una sola referencia (carrito de add-ons).
+
+20. **Integración con configuración del tenant:**
+    - Al aprobar un add-on de tipo `reporte`: agregar identificador a `configuracion.reportes.enabled`.
+    - Al aprobar un add-on de tipo `recurso_extra`: incrementar el límite correspondiente en `configuracion.limites.recursos`.
+    - Al aprobar un add-on de tipo `feature`: agregar a `configuracion.features_enabled`.
+    - Al aprobar un add-on de tipo `plantilla_email` o `plantilla_whatsapp`: registrar en tabla de plantillas del tenant con flag `es_addon = true`.
+    - Al vencer un add-on: revertir los cambios automáticamente (remover de enabled, decrementar límite, etc.).
+
+21. **Job `VerificarAddonsVencidos`:**
+    - Ejecución diaria a las 08:30 AM (después de `VerificarSuscripcionesVencidas`).
+    - Busca add-ons activos con `fecha_fin < now()`.
+    - Cambia estado a `vencido`, remueve del tenant, envía email de notificación.
+    - Recordatorios a 7, 3 y 1 día antes del vencimiento.
+
+**Ejemplos de Add-ons:**
+
+| Tipo | Nombre | Identificador | Precio Mensual |
+|------|--------|---------------|----------------|
+| reporte | Reporte de Remesas | `reporte_remesas` | $500 |
+| reporte | Reporte de Patrones de Cliente | `reporte_patron_clientes` | $800 |
+| reporte | Envío PDF a Clientes | `reporte_clientes_pdf` | $600 |
+| plantilla_email | Plantilla Notificación de Embarque | `email_embarque` | $300 |
+| plantilla_email | Plantilla Recordatorio Personalizado | `email_recordatorio_custom` | $250 |
+| plantilla_whatsapp | Plantilla Seguimiento de Contenedor | `whatsapp_contenedor` | $300 |
+| plantilla_whatsapp | Plantilla Alerta de Modulación Premium | `whatsapp_modulacion_premium` | $400 |
+| feature | Acceso a API | `feature_api_access` | $1,000 |
+| feature | Soporte Prioritario 24/7 | `feature_soporte_247` | $1,500 |
+| recurso_extra | +50 Operaciones Mensuales | `recurso_50_ops` | $400 |
+| recurso_extra | +5 Usuarios Adicionales | `recurso_5_users` | $300 |
+| recurso_extra | +500 Documentos Mensuales | `recurso_500_docs` | $200 |
+
+**Fase 6 — Rutas y Middleware:**
+
+22. **Rutas en `routes/web.php`:**
+    ```php
+    Route::prefix('nexacore-admin/suscripciones')->name('admin.suscripciones.')->middleware(['auth', 'super_admin'])->group(function () {
+        Route::get('/dashboard', [SuscripcionesController::class, 'dashboard'])->name('dashboard');
+        Route::get('/planes', [SuscripcionesController::class, 'planes'])->name('planes');
+        Route::post('/planes', [SuscripcionesController::class, 'storePlan'])->name('planes.store');
+        Route::put('/planes/{plan}', [SuscripcionesController::class, 'updatePlan'])->name('planes.update');
+        Route::delete('/planes/{plan}', [SuscripcionesController::class, 'destroyPlan'])->name('planes.destroy');
+        
+        Route::get('/', [SuscripcionesController::class, 'index'])->name('index');
+        Route::post('/crear/{tenant}', [SuscripcionesController::class, 'crearSuscripcion'])->name('crear');
+        Route::post('/aprobar/{suscripcion}', [SuscripcionesController::class, 'aprobarPago'])->name('aprobar');
+        Route::post('/rechazar/{suscripcion}', [SuscripcionesController::class, 'rechazarPago'])->name('rechazar');
+        
+        // Add-ons
+        Route::get('/addons', [AddonsController::class, 'catalogo'])->name('addons');
+        Route::post('/addons', [AddonsController::class, 'storeAddon'])->name('addons.store');
+        Route::put('/addons/{addon}', [AddonsController::class, 'updateAddon'])->name('addons.update');
+        Route::delete('/addons/{addon}', [AddonsController::class, 'destroyAddon'])->name('addons.destroy');
+        Route::get('/addons-contratados', [AddonsController::class, 'contratados'])->name('addons.contratados');
+        Route::post('/addons/contratar/{tenant}', [AddonsController::class, 'contratar'])->name('addons.contratar');
+        Route::post('/addons/aprobar/{addonContratado}', [AddonsController::class, 'aprobarPago'])->name('addons.aprobar');
+        Route::post('/addons/rechazar/{addonContratado}', [AddonsController::class, 'rechazarPago'])->name('addons.rechazar');
+        
+        Route::get('/configuracion', [SuscripcionesController::class, 'configuracion'])->name('configuracion');
+        Route::post('/configuracion', [SuscripcionesController::class, 'updateConfiguracion'])->name('configuracion.update');
+    });
+    ```
+
+23. **Link en Sidebar (`layouts/admin.blade.php`):**
+    - Agregar enlace "Suscripciones" con icono `fa-credit-card` debajo de "Finanzas".
+
+**Flujo Completo:**
+
+1. **Superadmin crea plan custom:** Desde `/nexacore-admin/suscripciones/planes`, crea "Paquete México" con precio base $5,000, IVA 16%, 10 usuarios, 200 operaciones, 50 modulaciones, reportes básicos.
+
+2. **Superadmin asigna plan a tenant:** Desde `/nexacore-admin/tenants/{id}`, hace clic en "Crear Suscripción", selecciona "Paquete México", sistema calcula: $5,000 + 16% IVA = $5,800 total. Genera referencia única "NX-2026-ABC123".
+
+3. **Sistema envía email al cliente:** El admin del tenant recibe email con instrucciones: "Paga $5,800 MXN a CLABE 012345678901234567 en Banco XYZ con referencia NX-2026-ABC123 antes del 15/06/2026".
+
+4. **Cliente realiza transferencia:** El cliente paga desde su banca electrónica usando la referencia proporcionada.
+
+5. **Superadmin verifica y aprueba:** Desde `/nexacore-admin/suscripciones`, ve el pago pendiente, verifica en la cuenta bancaria que recibió $5,800 con referencia NX-2026-ABC123, hace clic en "Aprobar Pago".
+
+6. **Sistema activa suscripción:** Cambia estado a `activa`, actualiza `configuracion` del tenant con límites del plan, envía email de confirmación al cliente, establece `fecha_fin` a 30 días.
+
+7. **Cliente usa el sistema:** El tenant ahora tiene acceso a las características del plan contratado hasta la fecha de vencimiento.
+
+8. **Cliente contrata add-on:** El cliente quiere el "Reporte de Remesas" que no está en su plan. Superadmin va a `/nexacore-admin/tenants/{id}`, sección "Add-ons", hace clic en "Agregar Add-on", selecciona "Reporte de Remesas" ($500/mes). Sistema genera referencia "ADD-2026-XYZ789" y envía email con instrucciones de pago.
+
+9. **Superadmin aprueba add-on:** Verifica pago de $580 ($500 + IVA), aprueba desde el panel. Sistema agrega `reporte_remesas` a `configuracion.reportes.enabled` del tenant. Cliente ahora puede acceder al reporte sin cambiar de plan.
+
+10. **Renovación:** 7 días antes del vencimiento (plan o add-on), el sistema envía recordatorio. El superadmin puede crear una nueva suscripción o renovar add-on para el siguiente periodo.
+
+**Notas Técnicas:**
+- Usar `NexaCore Design Language` skill para todas las vistas (rounded-2xl, indigo-600, font-black, etc.).
+- Emails deben ser responsive y profesionales, con logo de NexaCore.
+- Referencia de pago debe ser única y fácil de identificar (formato: NX-AÑO-RANDOM para planes, ADD-AÑO-RANDOM para add-ons).
+- IVA configurable para soportar zonas económicas especiales (8% en frontera norte).
+- Sistema debe manejar múltiples suscripciones por tenant (historial de renovaciones).
+- Add-ons pueden contratarse independientemente del plan (ej: un tenant en trial puede contratar un add-on).
+- Al vencer un add-on, el sistema debe revertir automáticamente los cambios en la configuración del tenant (remover reporte, decrementar límite, etc.).
+- Permitir "carrito de add-ons": el superadmin puede seleccionar múltiples add-ons para un tenant y generar una sola referencia de pago con el total.
+
+**Estado:** Cerrado
+
+---
+
+### INC-060: Separación de Módulos Finanzas y Suscripciones + Catálogo de Add-ons con Identificadores Predefinidos
+
+**Fecha:** 2026-06-04
+**Severidad:** Media
+**Módulo:** Superadmin / Finanzas / Suscripciones
+
+**Problema:**
+1. Los módulos de Finanzas (INC-052) y Suscripciones (INC-059) estaban mezclados conceptualmente. Finanzas gestiona pagos legacy y facturas del sistema antiguo, mientras que Suscripciones gestiona planes custom, pagos por transferencia, add-ons y configuración de facturación SaaS.
+2. El catálogo de add-ons requería que el superadmin conociera los identificadores técnicos de memoria (ej: `reporte_remesas`, `whatsapp_contenedor`), lo cual era propenso a errores.
+
+**Solución Aplicada:**
+
+1. **Separación de módulos en el sidebar:**
+   - **Finanzas** (`/nexacore-admin/finanzas`): Dashboard financiero legacy, gestión de pagos manuales, facturas legacy (INC-052).
+   - **Suscripciones** (`/nexacore-admin/suscripciones`): Dashboard de suscripciones SaaS, planes custom, suscripciones activas, add-ons, configuración de facturación (INC-059).
+   - Ambos módulos coexisten sin interferirse.
+
+2. **Catálogo de add-ons con identificadores predefinidos:**
+   - El formulario de crear add-on ahora tiene un select dinámico que cambia según el tipo seleccionado.
+   - **Reportes:** `clientes`, `operacion_semanal`, `remesas`, `clientes_pdf`, `aduanas`, `patron_clientes`, `financiero`, `logistica`, `pedimentos`.
+   - **Plantillas Email:** `email_embarque`, `email_recordatorio_custom`, `email_estado_cuenta`, `email_cierre_expediente`, `email_bienvenida_cliente`, `email_documentos_faltantes`.
+   - **Plantillas WhatsApp:** `whatsapp_contenedor`, `whatsapp_modulacion_premium`, `whatsapp_recordatorio`, `whatsapp_estado_cuenta`, `whatsapp_desaduanamiento`, `whatsapp_documentos`.
+   - **Features:** `email_notifications`, `whatsapp_notifications`, `api_access`, `soporte_prioritario`, `personalizacion`, `bot_doda_auto`, `integracion_contable`, `exportacion_masiva`.
+   - **Recursos Extra:** `recurso_50_ops`, `recurso_100_ops`, `recurso_5_users`, `recurso_10_users`, `recurso_500_docs`, `recurso_1000_docs`, `recurso_50_modulaciones`, `recurso_100_modulaciones`.
+   - JavaScript actualiza el select de identificadores automáticamente cuando cambia el tipo de add-on.
+   - Hint descriptivo debajo del select explica el propósito de cada tipo.
+
+**Archivos Modificados:**
+- `resources/views/admin/suscripciones/addons.blade.php` — Select dinámico de identificadores técnicos con JavaScript
+- `resources/views/layouts/admin.blade.php` — Sidebar con enlaces separados para Finanzas y Suscripciones
 
 **Estado:** Cerrado
